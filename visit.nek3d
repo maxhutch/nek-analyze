@@ -1,0 +1,5 @@
+NEK5000
+version: 1.0
+filetemplate:  alpha%d.f%05d
+firsttimestep: 1
+numtimesteps: 250
