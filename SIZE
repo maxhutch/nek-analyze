@@ -3,8 +3,8 @@ C
 C     HCUBE array dimensions
 C
       parameter (ldim=3)
-      parameter (lx1=16,ly1=lx1,lz1=lx1,lelt=2048,lelv=lelt)
-      parameter (lxd=24,lyd=lxd,lzd=lxd)
+      parameter (lx1=8,ly1=lx1,lz1=lx1,lelt=8,lelv=lelt)
+      parameter (lxd=16,lyd=lxd,lzd=lxd)
       parameter (lelx=1,lely=1,lelz=1)
  
       parameter (lzl=3 + 2*(ldim-3))
@@ -16,8 +16,8 @@ C
       parameter (ly3=ly2)
       parameter (lz3=lz2)
 
-      parameter (lp = 4)
-      parameter (lelg = 8192)
+      parameter (lp = 8192)
+      parameter (lelg = 65536)
 c
 c     parameter (lpelv=lelv,lpelt=lelt,lpert=3)  ! perturbation
 c     parameter (lpx1=lx1,lpy1=ly1,lpz1=lz1)     ! array sizes
