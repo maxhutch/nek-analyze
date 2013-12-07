@@ -7,7 +7,7 @@ C-----------------------------------------------------------------------
       integer e,f,eg
 c     e = gllel(eg)
 
-      udiff  = 1.E-31
+      udiff  = 1.E-7
       utrans = 1.0
 
       return
@@ -89,14 +89,14 @@ c      use ifport, only : random_number, random_seed
       common /cmean_t/ tz_mean(lx1,ly1,lz1,lelt)
 
       integer e,eg
-      integer i,j,ij
+      integer i,j,ij, k
       real atwood, k_width, sat
       integer ppm, pps
 
       real delta, eps
       integer mode_u, mode_l
 
-      real amp(1024, 1024)
+      real amp(4, 1024, 1024)
       save amp
 
       integer init
@@ -113,9 +113,9 @@ c      use ifport, only : random_number, random_seed
 
       atwood = 0.001
       k_width = 0.5
-      sat = 0.1
-      ppm = 8
-      pps = 2
+      sat = 0.001
+      ppm = 4
+      pps = 8
 
       delta = (pps * 0.1) / (256)
       mode_u = (256 / ppm)
@@ -124,11 +124,14 @@ c      use ifport, only : random_number, random_seed
       if (init == 0) then
         do i = 1, mode_u
 	  do j = 1, mode_u
-	    ij = i + 1024*j
-c	    call random_seed(put=ij)
-            call random_number(amp(i,j))
-            amp(i,j) = sat * (amp(i,j)-0.5) / sqrt(real(i*i + j*j))
-c          write(*,*) "Initing: ", i, amp(i) 
+	    if (sqrt(real(i*i + j*j)) < mode_u .and. 
+     +          sqrt(real(i*i + j*j)) > mode_l) then
+	      ij = i + 1024*j
+	      do k = 1,4
+                call random_number(amp(k,i,j))
+                amp(k,i,j) = sat*(amp(k,i,j)-0.5)/sqrt(real(i*i + j*j))
+              enddo
+	    endif
           enddo
 	enddo
 	init = 1
@@ -143,7 +146,10 @@ c      endif
         do j = 1, mode_u
 	  if (sqrt(real(i*i + j*j)) < mode_u .and. 
      +        sqrt(real(i*i + j*j)) > mode_l) then
-            zz = zz + amp(i,j) * sin(i * pi * x) * sin(j * pi * y)
+            zz = zz + amp(1,i,j) * cos(i*2*pi*x) * cos(j*2*pi*y)
+            zz = zz + amp(2,i,j) * cos(i*2*pi*x) * sin(j*2*pi*y)
+            zz = zz + amp(3,i,j) * sin(i*2*pi*x) * cos(j*2*pi*y)
+            zz = zz + amp(4,i,j) * sin(i*2*pi*x) * sin(j*2*pi*y)
 	  endif
 	enddo
       enddo
