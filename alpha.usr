@@ -21,7 +21,7 @@ c-----------------------------------------------------------------------
 c     Note: this is an acceleration term, NOT a force!
 c     Thus, ffx will subsequently be multiplied by rho(x,t).
 
-      common /myvalues/ rayleigh
+      common /myvalues/ rayleigh, atwood, kmax, kmin, amp0
       common /cmean_t/ tz_mean(lx1,ly1,lz1,lelt)
 
       integer e,f,eg
@@ -30,7 +30,6 @@ c     Thus, ffx will subsequently be multiplied by rho(x,t).
 
       ffx = 0.0
       ffy = 0.0
-c     ffz = rayleigh*(temp-tz_mean(ix,iy,iz,e))
       ffz = rayleigh*temp
 
       return
@@ -86,17 +85,19 @@ c      use ifport, only : random_number, random_seed
       include 'TOTAL'
       include 'NEKUSE'
       include 'ZPER'
+
       common /cmean_t/ tz_mean(lx1,ly1,lz1,lelt)
+      common /myvalues/ rayleigh, atwood, kmax, kmin, amp0
 
       integer e,eg
       integer i,j,ij, k
-      real atwood, k_width, sat
+      real k_width
       integer ppm, pps
 
       real delta, eps
       integer mode_u, mode_l
 
-      real amp(4, 1024, 1024)
+      real amp(4, 64*64)
       save amp
 
       integer init
@@ -111,25 +112,24 @@ c      use ifport, only : random_number, random_seed
       uy   = 0.0
       uz   = 0.0
 
-      atwood = 0.001
       k_width = 0.5
-      sat = 0.001
-      ppm = 4
-      pps = 8
+      ppm = 8
+      pps = 6
 
-      delta = (pps * 0.1) / (256)
-      mode_u = (256 / ppm)
-      mode_l = (1-k_width) * mode_u + 0.5
+      delta = (pps * 0.1) / (512)
+      mode_u = kmax
+      mode_l = kmin
 
       if (init == 0) then
-        do i = 1, mode_u
-	  do j = 1, mode_u
+        ij = 0
+        do i = mode_l, mode_u
+	  do j = mode_l, mode_u
 	    if (sqrt(real(i*i + j*j)) < mode_u .and. 
      +          sqrt(real(i*i + j*j)) > mode_l) then
-	      ij = i + 1024*j
+	      ij = ij + 1
 	      do k = 1,4
-                call random_number(amp(k,i,j))
-                amp(k,i,j) = sat*(amp(k,i,j)-0.5)/sqrt(real(i*i + j*j))
+                call random_number(amp(k,ij))
+                amp(k,ij) = amp0*(amp(k,ij)-0.5)/mode_u
               enddo
 	    endif
           enddo
@@ -142,14 +142,16 @@ c      use ifport, only : random_number, random_seed
 c      if (x > 1./3. .and. x < 2./3. .and. y>1./3. .and. y<2./3.) then
 c        zz = zz + sin(3 * pi * x)*sin(3 * pi * y)
 c      endif
-      do i = 1, mode_u
-        do j = 1, mode_u
+      ij = 0
+      do i = mode_l, mode_u
+        do j = mode_l, mode_u
 	  if (sqrt(real(i*i + j*j)) < mode_u .and. 
      +        sqrt(real(i*i + j*j)) > mode_l) then
-            zz = zz + amp(1,i,j) * cos(i*2*pi*x) * cos(j*2*pi*y)
-            zz = zz + amp(2,i,j) * cos(i*2*pi*x) * sin(j*2*pi*y)
-            zz = zz + amp(3,i,j) * sin(i*2*pi*x) * cos(j*2*pi*y)
-            zz = zz + amp(4,i,j) * sin(i*2*pi*x) * sin(j*2*pi*y)
+            ij = ij + 1
+            zz = zz + amp(1,ij) * cos(i*2*pi*x) * cos(j*2*pi*y)
+            zz = zz + amp(2,ij) * cos(i*2*pi*x) * sin(j*2*pi*y)
+            zz = zz + amp(3,ij) * sin(i*2*pi*x) * cos(j*2*pi*y)
+            zz = zz + amp(4,ij) * sin(i*2*pi*x) * sin(j*2*pi*y)
 	  endif
 	enddo
       enddo
@@ -157,8 +159,7 @@ c      endif
 c      write(*,*) "zz=", zz
 
       e = gllel(eg)
-      tz_mean(ix,iy,iz,e) = atwood*atan(zz)/pi ! Save this to remove hydrostatic
-      temp = tz_mean(ix,iy,iz,e) !+ eps*sin(16*pi*x) 
+      temp = atwood*atan(zz)/pi 
       return
       end
 c-----------------------------------------------------------------------
@@ -182,8 +183,12 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
 
-      common /myvalues/ rayleigh
+      common /myvalues/ rayleigh, atwood, kmax, kmin, amp0
 
+      atwood = 1.E-3
+      kmax = 64
+      kmin = kmax / 2
+      amp0 = 0.05
       rayleigh = 9.8
 
 

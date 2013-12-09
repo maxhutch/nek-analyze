@@ -3,19 +3,19 @@
             3 DIMENSIONAL RUN
           103 PARAMETERS FOLLOW
    1.00000         p1  DENSITY
-   1.E-7           p2  VISCOS
+   8.9E-07         p2  VISCOS
    0.
    0.
    0.
    0.
-   0.              p7  RHOCP
-   1.E-7           p8  CONDUCT
+   1.              p7  RHOCP
+   1.99E-09        p8  CONDUCT
    0.
    0.              p10 FINTIME
    452000          p11 NSTEPS
-   0.01            p12 DT
+   0.05            p12 DT
    0.              p13 IOCOMM
-   0.1             p14 IOTIME
+   1.              p14 IOTIME
    0.              p15 IOSTEP
    0.              p16 PSSOLVER
    0.
@@ -24,14 +24,14 @@
    7.0000          p20 NORDER
    1.000000E-05    p21 DIVERGENCE
    1.000000E-08    p22 HELMHOLTZ
-   0               p23 NPSCAL
+  0              p23 NPSCAL
    0.100000E-01    p24 TOLREL
    0.100000E-01    p25 TOLABS
    0.05            p26 COURANT/NTAU
    3.00000         p27 TORDER
    0.              p28 TORDER: mesh velocity (0: p28=p27)
    0.              p29 magnetic visc if > 0, = -1/Rm if < 0
-   1.              p30 > 0 ==> properties set in uservp()
+   0.              p30 > 0 ==> properties set in uservp()
    0.              p31 NPERT: #perturbation modes
    0.              p32 #BCs in re2 file, if > 0
    0.
@@ -114,7 +114,7 @@
   T     IFHEAT
    8.00000   8.00000  -0.500000   -4.00000     XFAC,YFAC,XZERO,YZERO
  **MESH DATA** 6 lines are X,Y,Z;X,Y,Z. Columns corners 1-4;5-8
-      -65536  3         65536     NELT,NDIM,NELV
+      -65536  3       65536           NEL,NDIM,NELV
             0 PRESOLVE/RESTART OPTIONS  *****
             7         INITIAL CONDITIONS *****
 C Default
