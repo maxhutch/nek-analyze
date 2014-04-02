@@ -36,7 +36,6 @@ def lagrange_matrix(A,B):
 def elm_to_grid(pos_elm, f_elm):
   from scipy.special import cbrt
   dx = pos_elm[1,0,0] - pos_elm[0,0,0]
-  print(dx)
   order = int(cbrt(pos_elm.shape[0]))
   print("Grid order " + str(order))
 
@@ -47,7 +46,6 @@ def elm_to_grid(pos_elm, f_elm):
                      np.max(pos_elm[:,:,1]), 
                      np.max(pos_elm[:,:,2])])
   size = np.array((corner - origin)/dx + .5, dtype=int)+1
-  print(size)
   ''' position grid '''
   pos_grid = np.zeros((size[0], size[1], size[2], 3), order='F') 
   for i in range(size[0]):
@@ -80,7 +78,7 @@ with open(argv[1],'rb') as f:
   print("Opened {:s} and found {:d} elements of order {:d}".format(argv[1], nelm, norder)) 
   #''' Check the test float '''
   test = struct.unpack('f', f.read(4))
-  print("  * test float is {}".format(test))
+  #print("  * test float is {}".format(test))
   #''' 4 byptes per element for an unused map '''
   element_map = f.read(nelm*4)
   #''' 4*3 bytes per basis function for position '''
@@ -196,26 +194,36 @@ for j in range(nelm):
 
 toc('reorder')
 tic()
-print(np.max(T_trans), np.min(T_trans))
 pos_grid, t_grid = elm_to_grid(pos_trans, T_trans)
-print(np.max(t_grid), np.min(t_grid))
 center = int(pos_grid.shape[1]/2)
 plot_xt = pos_grid[:,center,:,0].ravel()
 plot_yt = pos_grid[:,center,:,2].ravel()
 plot_tt = t_grid[:,center,:].ravel()
-print(np.max(plot_tt), np.min(plot_tt))
-print(center, t_grid.shape[1])
 toc('to_grid')
 
 tic()
 cont = np.zeros((t_grid.shape[0]))
 from scipy import interpolate
-t_transposed = np.copy(np.transpose(t_grid, (2,0,1)), order='F')
+block = 1
+desired_resolution = abs(pos_grid[0,center,1,2] - pos_grid[0,center,0,2])/4
 for i in range(t_grid.shape[0]):
-  f = interpolate.interp1d(pos_grid[i,center,:,2], t_transposed[:,i, center], kind='cubic') 
-  z_low = np.min(pos_grid[i,center,:,2]); z_high = np.max(pos_grid[i,center,:,2])
+  i_low = 0
+  i_high = t_grid.shape[2]-1
+  failsafe = 0
+  while (t_grid[i,center,i_low] - t_grid[i,center,i_high]) > 0.25 and i_high - i_low > 32 and failsafe < 10:
+    failsafe += 1
+    i_1 = int(i_low + (i_high-i_low)/3)
+    i_2 = int(i_low + (i_high-i_low)*2/3)
+    if t_grid[i,center,i_1] > .6: 
+      i_low = i_1
+    if t_grid[i,center,i_2] < .4: 
+      i_high = i_2
+
+  f = interpolate.interp1d(pos_grid[i,center,i_low:i_high,2], t_grid[i, center,i_low:i_high], kind='cubic') 
+  z_low  = np.min(pos_grid[i,center,i_low:i_high,2])
+  z_high = np.max(pos_grid[i,center,i_low:i_high,2])
   z_guess = (z_high + z_low)/2.
-  for j in range(16):
+  while (z_high - z_low) > desired_resolution:
     fz = f(z_guess)
     if fz > 0.5:
       z_low = z_guess
@@ -246,7 +254,6 @@ plt.savefig(argv[1]+'_slice.png')
 # Fourier analysis in 1 dim
 plt.figure()
 bx1 = plt.subplot(1,2,1)
-print(len(np.arange(int(t_grid.shape[0]/2+1))), len(np.fft.rfft(t_grid[:,center,int(t_grid.shape[2]/2)])))
 bx1.bar(  np.arange(int(t_grid.shape[0]/2+1)),  abs(np.fft.rfft(t_grid[:,center,int(t_grid.shape[2]/2)])))
 plt.title('temperature')
 plt.xlabel('Mode')
@@ -264,6 +271,7 @@ plt.savefig(argv[1]+'_spectrum.png')
 plt.figure()
 ax1 = plt.subplot(1,1,1)
 ax1.hist(t_grid.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
+plt.xlim([0,1])
 plt.savefig(argv[1]+'_cdf.png')
 plt.show()
 
