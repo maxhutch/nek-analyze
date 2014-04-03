@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import scipy as sp
 import scipy.linalg
 
+print_timers = False
+
 """ Timers from SO """
 def tic():
     import time
@@ -16,9 +18,39 @@ def tic():
 def toc(label):
     import time
     if 'startTime_for_tictoc' in globals():
+      if print_timers:
         print("    > " + str(time.time() - startTime_for_tictoc) + "s in " + label)
     else:
         print("Toc: start time not set")
+
+def find_root(x, y, y0 = .5, desired_resolution = None):
+  from scipy import interpolate
+  if desired_resolution == None:
+    desired_resolution = abs(x[1] - x[0])/8.
+  i_low = 0
+  i_high = x.shape[0]
+  failsafe = 0
+  while (i_high - i_low) > 32 and failsafe < 10:
+    failsafe += 1
+    i_1 = int(i_low + (i_high-i_low)/3)
+    i_2 = int(i_low + (i_high-i_low)*2/3)
+    if y[i_1] > y0*1.1: 
+      i_low = i_1
+    if y[i_2] < y0*.9: 
+      i_high = i_2
+
+  f = interpolate.interp1d(x[i_low:i_high], y[i_low:i_high], kind='cubic') 
+  x_low  = np.min(x[i_low:i_high])
+  x_high = np.max(x[i_low:i_high])
+  x_guess = (x_high + x_low)/2.
+  while (x_high - x_low) > desired_resolution:
+    fx = f(x_guess)
+    if fx > y0:
+      x_low = x_guess
+    else:
+      x_high = x_guess
+    x_guess = (x_high + x_low)/2.
+  return x_guess
 
 class Grid:
   def __init__(self, shape):
@@ -54,6 +86,45 @@ class Grid:
              root[1]:root[1]+order,
              root[2]:root[2]+order] = np.reshape(f_elm[:,i], (order,order,order), order='F')
 
+def plot_slice(grid, contour = None, fname = None):
+  center = int(grid.shape[1]/2)
+  plot_x = grid.x[:,center,:,0].ravel()
+  plot_y = grid.x[:,center,:,2].ravel()
+  plot_f = grid.f[:,center,:].ravel()
+
+
+  fig = plt.figure(figsize=(12,12))
+  ax1 = plt.subplot(1,1,1)
+  plt.title('Grid Scatter plot')
+  ax1.scatter(plot_x, plot_y, c=plot_f, s=2, linewidths = 0.)
+  plt.axis([np.min(plot_x), np.max(plot_x), np.min(plot_y), np.max(plot_y)])
+  if contour != None:
+    ax1.plot(grid.x[:,center,0,0], contour, 'k-')
+  plt.xlabel('X')
+  plt.ylabel('Z')
+  if fname != None:
+    plt.savefig(fname)
+
+def mixing_zone(grid, thresh = .1, plot = False, fname = None, time = -1.):
+  f_xy = np.ones(data.shape[2])
+  for i in range(data.shape[2]):
+    f_xy[i] = np.average(data.f[:,:,i])
+
+  boundaries = (find_root(data.x[1,1,:,2], f_xy, y0 = thresh), find_root(data.x[1,1,:,2], f_xy, y0 = 1-thresh))
+  if fname != None:
+    with open(fname, "a") as f:
+      f.write("{:f} {:13.10f} {:13.10f}\n".format(time, boundaries[0], boundaries[1]))
+
+  if plot: 
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.plot(grid.x[1,1,:,2], f_xy, 'k-')
+    ax1.vlines(boundaries, (0, 1), (thresh, 1-thresh))
+    plt.savefig(argv[1]+'_mixing_zone.png')
+
+  return boundaries 
+
+
 """ Build Lagrange interpolation matrix """
 def lagrange_matrix(A,B):
   M = np.zeros((B.size,A.size), order='F')
@@ -67,6 +138,8 @@ def lagrange_matrix(A,B):
   return M
 
 """ Load the data """
+quiet = False
+
 tic()
 with open(argv[1],'rb') as f:
   #''' The header is 132 bytes long '''
@@ -74,9 +147,11 @@ with open(argv[1],'rb') as f:
   htoks = header.split()
   nelm = int(htoks[5])
   norder = int(htoks[2])
+  time = float(htoks[7])
   #''' Assume isotropic elements '''
   ntot = nelm * norder * norder * norder
-  print("Opened {:s} and found {:d} elements of order {:d}".format(argv[1], nelm, norder)) 
+  if not quiet:
+    print("Opened {:s} and found {:d} elements of order {:d}".format(argv[1], nelm, norder)) 
   #''' Check the test float '''
   test = struct.unpack('f', f.read(4))
   #print("  * test float is {}".format(test))
@@ -101,9 +176,10 @@ speed = np.sqrt(np.square(vel[:,:,0]) + np.square(vel[:,:,1]) + np.square(vel[:,
 toc('read')
 
 #''' Print some stuff '''
-print("Extremal temperatures {:f}, {:f}".format(np.max(t), np.min(t)))
-print("Extremal u_z          {:f}, {:f}".format(np.max(vel[:,:,2]), np.min(vel[:,:,2])))
-print("Max speed: {:f}".format(np.max(speed)))
+if not quiet:
+  print("Extremal temperatures {:f}, {:f}".format(np.max(t), np.min(t)))
+  print("Extremal u_z          {:f}, {:f}".format(np.max(vel[:,:,2]), np.min(vel[:,:,2])))
+  print("Max speed: {:f}".format(np.max(speed)))
 
 #''' Learn about the mesh '''
 origin = np.array([np.min(pos[:,:,0].flatten()),
@@ -114,8 +190,9 @@ corner = np.array([np.max(pos[:,:,0].flatten()),
                    np.max(pos[:,:,2].flatten())])
 extent = corner-origin
 size = np.array((corner - origin)/(pos[0,1,0] - pos[0,0,0]), dtype=int)
-print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
-      extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
+if not quiet:
+  print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
+        extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
 
 # setup the transformation
 ninterp = int(norder*2)
@@ -123,8 +200,9 @@ gll  = pos[0:norder,0,0]
 dx_max = np.max(gll[1:] - gll[0:-1])
 cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
 trans = lagrange_matrix(gll,cart)
-print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
-print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
+if not quiet:
+  print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
+  print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
 
 # Apply the transformation
 t_tmp = np.zeros((norder**2*ninterp,nelm), order='F')
@@ -163,100 +241,28 @@ for i in range(nelm):
 toc('trans_pos')
 
 # Renorm
-#T_low = np.min(t); T_high = np.max(t)
-T_low = -0.0005; T_high = 0.0005
-T = (t - T_low)/(T_high - T_low)
-
 #Tt_low = np.min(t_trans); Tt_high = np.max(t_trans)
 Tt_low = -0.0005; Tt_high = 0.0005
 T_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
 
 # extract for scatter plot
 tic()
-plot_x = np.zeros((size[0]*size[2])*norder**2)
-plot_y = np.zeros((size[0]*size[2])*norder**2)
-plot_t = np.zeros((size[0]*size[2])*norder**2)
-
-plot_xt = np.zeros((size[0]*size[2])*ninterp**2)
-plot_yt = np.zeros((size[0]*size[2])*ninterp**2)
-plot_tt = np.zeros((size[0]*size[2])*ninterp**2)
-
-ptr = 0; ptr_t = 0
-center = 0.000512
-plane = 1
-for j in range(nelm):
-  if abs(pos_trans[0,j,plane] - center) < 1.e-10:
-   for i in range(norder**3):
-    if abs(pos[i,j,plane] - center) < 1.e-10:
-      plot_x[ptr] = pos[i,j,0]
-      plot_y[ptr] = pos[i,j,2]
-      plot_t[ptr] = T[i,j]
-      ptr = ptr + 1
-
-toc('reorder')
-tic()
 data = Grid(pos_trans, T_trans)
-center = int(data.shape[1]/2)
-plot_xt = data.x[:,center,:,0].ravel()
-plot_yt = data.x[:,center,:,2].ravel()
-plot_tt = data.f[:,center,:].ravel()
 toc('to_grid')
 
 cont = np.zeros((data.shape[0]))
 tic()
-from scipy import interpolate
-block = 1
-desired_resolution = abs(data.x[0,center,1,2] - data.x[0,center,0,2])/4
+center = data.shape[1]/2
 for i in range(data.shape[0]):
-  i_low = 0
-  i_high = data.shape[2]-1
-  failsafe = 0
-  while (data.f[i,center,i_low] - data.f[i,center,i_high]) > 0.25 and i_high - i_low > 32 and failsafe < 10:
-    failsafe += 1
-    i_1 = int(i_low + (i_high-i_low)/3)
-    i_2 = int(i_low + (i_high-i_low)*2/3)
-    if data.f[i,center,i_1] > .6: 
-      i_low = i_1
-    if data.f[i,center,i_2] < .4: 
-      i_high = i_2
-
-  f = interpolate.interp1d(data.x[i,center,i_low:i_high,2], data.f[i, center,i_low:i_high], kind='cubic') 
-  z_low  = np.min(data.x[i,center,i_low:i_high,2])
-  z_high = np.max(data.x[i,center,i_low:i_high,2])
-  z_guess = (z_high + z_low)/2.
-  while (z_high - z_low) > desired_resolution:
-    fz = f(z_guess)
-    if fz > 0.5:
-      z_low = z_guess
-    else:
-      z_high = z_guess
-    z_guess = (z_high + z_low)/2.
-  cont[i] = z_guess
+  cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
 toc('contour')
 
-f_xy = np.ones(data.shape[2])
-for i in range(data.shape[2]):
-  f_xy[i] = np.average(data.f[:,:,i])
-  print(f_xy[i])
+mixing_zone(data)
 
 # Scatter plot of temperature (slice through pseudocolor in visit)
 tic()
-fig = plt.figure(figsize=(24,12))
-ax1 = plt.subplot(1,2,1)
-plt.title('GLL Scatter plot')
-ax1.scatter(plot_x, plot_y, c=plot_t, s=15, linewidths = 0., alpha = 0.5)
-plt.xlabel('X')
-plt.ylabel('Z')
-plt.axis([np.min(plot_x), np.max(plot_x), np.min(plot_y), np.max(plot_y)])
-ax2 = plt.subplot(1,2,2)
-plt.title('Grid Scatter plot')
-ax2.scatter(plot_xt, plot_yt, c=plot_tt, s=2, linewidths = 0.)
-plt.axis([np.min(plot_xt), np.max(plot_xt), np.min(plot_yt), np.max(plot_yt)])
-ax2.plot(data.x[:,center,0,0], cont, 'k-')
-plt.xlabel('X')
-plt.ylabel('Z')
-plt.savefig(argv[1]+'_slice.png')
-
+#plot_slice(data, contour = cont)
+'''
 # Fourier analysis in 1 dim
 plt.figure()
 bx1 = plt.subplot(1,2,1)
@@ -280,12 +286,7 @@ ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=
 plt.xlim([-.1,1.1])
 plt.savefig(argv[1]+'_cdf.png')
 
-plt.figure()
-ax1 = plt.subplot(1,1,1)
-ax1.plot(data.x[1,1,:,2], f_xy, 'k-')
-plt.savefig(argv[1]+'_fxy.png')
-
+'''
 plt.show()
-
 toc('plot')
 
