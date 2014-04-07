@@ -2,177 +2,23 @@
 
 import numpy as np
 from sys import argv
-import struct
 import matplotlib.pyplot as plt
 import scipy as sp
 import scipy.linalg
 
-print_timers = False
-
-""" Timers from SO """
-def tic():
-    import time
-    global startTime_for_tictoc
-    startTime_for_tictoc = time.time()
-
-def toc(label):
-    import time
-    if 'startTime_for_tictoc' in globals():
-      if print_timers:
-        print("    > " + str(time.time() - startTime_for_tictoc) + "s in " + label)
-    else:
-        print("Toc: start time not set")
-
-def find_root(x, y, y0 = .5, desired_resolution = None):
-  from scipy import interpolate
-  if desired_resolution == None:
-    desired_resolution = abs(x[1] - x[0])/8.
-  i_low = 0
-  i_high = x.shape[0]
-  failsafe = 0
-  while (i_high - i_low) > 32 and failsafe < 10:
-    failsafe += 1
-    i_1 = int(i_low + (i_high-i_low)/3)
-    i_2 = int(i_low + (i_high-i_low)*2/3)
-    if y[i_1] > y0*1.1: 
-      i_low = i_1
-    if y[i_2] < y0*.9: 
-      i_high = i_2
-
-  f = interpolate.interp1d(x[i_low:i_high], y[i_low:i_high], kind='cubic') 
-  x_low  = np.min(x[i_low:i_high])
-  x_high = np.max(x[i_low:i_high])
-  x_guess = (x_high + x_low)/2.
-  while (x_high - x_low) > desired_resolution:
-    fx = f(x_guess)
-    if fx > y0:
-      x_low = x_guess
-    else:
-      x_high = x_guess
-    x_guess = (x_high + x_low)/2.
-  return x_guess
-
-class Grid:
-  def __init__(self, shape):
-    self.shape = shape
-    return
-
-  """ Unpack list of elements into single grid """
-  def __init__(self, pos_elm, f_elm):
-    from scipy.special import cbrt
-    dx = pos_elm[1,0,0] - pos_elm[0,0,0]
-    order = int(cbrt(pos_elm.shape[0]))
-    origin = np.array([np.min(pos_elm[:,:,0]),
-                       np.min(pos_elm[:,:,1]), 
-                       np.min(pos_elm[:,:,2])])
-    corner = np.array([np.max(pos_elm[:,:,0]), 
-                       np.max(pos_elm[:,:,1]), 
-                       np.max(pos_elm[:,:,2])])
-    self.shape = np.array((corner - origin)/dx + .5, dtype=int)+1
-    ''' position grid '''
-    self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F') 
-    for i in range(self.shape[0]):
-      self.x[i,:,:,0] = dx*i + origin[0] 
-    for i in range(self.shape[1]):
-      self.x[:,i,:,1] = dx*i + origin[1] 
-    for i in range(self.shape[2]):
-      self.x[:,:,i,2] = dx*i + origin[2] 
-
-    ''' field grid '''
-    self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F') 
-    for i in range(pos_elm.shape[1]):
-      root = np.array((pos_elm[0,i,:] - origin)/dx + .5, dtype=int)
-      self.f[root[0]:root[0]+order, 
-             root[1]:root[1]+order,
-             root[2]:root[2]+order] = np.reshape(f_elm[:,i], (order,order,order), order='F')
-
-def plot_slice(grid, contour = None, fname = None):
-  center = int(grid.shape[1]/2)
-  plot_x = grid.x[:,center,:,0].ravel()
-  plot_y = grid.x[:,center,:,2].ravel()
-  plot_f = grid.f[:,center,:].ravel()
-
-
-  fig = plt.figure(figsize=(12,12))
-  ax1 = plt.subplot(1,1,1)
-  plt.title('Grid Scatter plot')
-  ax1.scatter(plot_x, plot_y, c=plot_f, s=2, linewidths = 0.)
-  plt.axis([np.min(plot_x), np.max(plot_x), np.min(plot_y), np.max(plot_y)])
-  if contour != None:
-    ax1.plot(grid.x[:,center,0,0], contour, 'k-')
-  plt.xlabel('X')
-  plt.ylabel('Z')
-  if fname != None:
-    plt.savefig(fname)
-
-def mixing_zone(grid, thresh = .1, plot = False, fname = None, time = -1.):
-  f_xy = np.ones(data.shape[2])
-  for i in range(data.shape[2]):
-    f_xy[i] = np.average(data.f[:,:,i])
-
-  boundaries = (find_root(data.x[1,1,:,2], f_xy, y0 = thresh), find_root(data.x[1,1,:,2], f_xy, y0 = 1-thresh))
-  if fname != None:
-    with open(fname, "a") as f:
-      f.write("{:f} {:13.10f} {:13.10f}\n".format(time, boundaries[0], boundaries[1]))
-
-  if plot: 
-    plt.figure()
-    ax1 = plt.subplot(1,1,1)
-    ax1.plot(grid.x[1,1,:,2], f_xy, 'k-')
-    ax1.vlines(boundaries, (0, 1), (thresh, 1-thresh))
-    plt.savefig(argv[1]+'_mixing_zone.png')
-
-  return boundaries 
-
-
-""" Build Lagrange interpolation matrix """
-def lagrange_matrix(A,B):
-  M = np.zeros((B.size,A.size), order='F')
-  for i in range(A.size):
-    for j in range(B.size):
-      M[j,i] =  1.
-      for k in range(A.size):
-        if k == i:
-          continue
-        M[j,i] = M[j,i] * (B[j] - A[k]) / (A[i] - A[k])
-  return M
-
 """ Load the data """
 quiet = False
 
-tic()
-with open(argv[1],'rb') as f:
-  #''' The header is 132 bytes long '''
-  header = str(f.read(132))
-  htoks = header.split()
-  nelm = int(htoks[5])
-  norder = int(htoks[2])
-  time = float(htoks[7])
-  #''' Assume isotropic elements '''
-  ntot = nelm * norder * norder * norder
-  if not quiet:
-    print("Opened {:s} and found {:d} elements of order {:d}".format(argv[1], nelm, norder)) 
-  #''' Check the test float '''
-  test = struct.unpack('f', f.read(4))
-  #print("  * test float is {}".format(test))
-  #''' 4 byptes per element for an unused map '''
-  element_map = f.read(nelm*4)
-  #''' 4*3 bytes per basis function for position '''
-  xyz  = np.fromfile(f, dtype=np.float32, count=ntot*3)
-  #''' 4*3 bytes per basis function for velocity '''
-  u    = np.fromfile(f, dtype=np.float32, count=norder*norder*norder*nelm*3)
-  #''' 4 bytes per basis function for pressure '''
-  p    = np.fromfile(f, dtype=np.float32, count=norder*norder*norder*nelm)
-  #''' 4 bytes per basis function for temperature '''
-  t_in = np.fromfile(f, dtype=np.float32, count=norder*norder*norder*nelm)
+from sys import path
+path.append('./python/')
+from nek import from_nek
+from my_utils import find_root, lagrange_matrix
+from tictoc import *
+from Grid import Grid, mixing_zone, plot_slice
 
-#''' Reshape vector data '''
-pos = np.transpose(np.reshape(xyz, (norder*norder*norder,3,nelm), order='F'), (0,2,1))
-vel = np.transpose(np.reshape(u, (norder*norder*norder,3,nelm), order='F'), (0,2,1))
-#''' Reshape scaler data '''
-t = np.reshape(t_in, (norder*norder*norder,nelm), order='F')
-#''' Compute the total speed '''
-speed = np.sqrt(np.square(vel[:,:,0]) + np.square(vel[:,:,1]) + np.square(vel[:,:,2]))
+tic()
+pos, vel, t, speed, time, norder = from_nek(argv[1])
+nelm = t.shape[1]
 toc('read')
 
 #''' Print some stuff '''
@@ -195,7 +41,7 @@ if not quiet:
         extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
 
 # setup the transformation
-ninterp = int(norder*2)
+ninterp = int(norder)
 gll  = pos[0:norder,0,0]
 dx_max = np.max(gll[1:] - gll[0:-1])
 cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
@@ -257,11 +103,13 @@ for i in range(data.shape[0]):
   cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
 toc('contour')
 
-mixing_zone(data)
+mixing_zone(data, plot = False, fname = 'mixing_zone_2.dat', time = time)
+foo = data.f.ravel()
+print("Extra temperature {:f} \n".format(np.sum(np.abs(np.where(foo > 1, foo, 0)))))
 
 # Scatter plot of temperature (slice through pseudocolor in visit)
 tic()
-#plot_slice(data, contour = cont)
+plot_slice(data, contour = cont)
 '''
 # Fourier analysis in 1 dim
 plt.figure()
