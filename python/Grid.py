@@ -34,6 +34,40 @@ class Grid:
              root[1]:root[1]+order,
              root[2]:root[2]+order] = np.reshape(f_elm[:,i], (order,order,order), order='F')
 
+def covering_number(grid, N):
+  import numpy as np
+  N = int(np.min(grid.shape / N))
+  nshift = int(N/2)+1
+  ans = grid.f.size
+  for ii in range(0,N,nshift):
+   for jj in range(0,N,nshift):
+    for kk in range(0,N,nshift):
+     counter = 0
+     for i in range(ii,grid.shape[0],N): 
+      for j in range(jj,grid.shape[1],N): 
+       for k in range(kk,grid.shape[2],N): 
+        box = grid.f[i:i+N+1,j:j+N+1,k:k+N+1]
+        if np.max(box) * np.min(box) <= 0.:
+          counter+=1
+     ans = min(ans, counter)
+  return ans
+
+def fractal_dimension(grid, nsample = 25, base = 1.2):
+  import numpy as np
+  from scipy.stats import linregress
+  cover_number = []
+  nbox = []
+  for i in range(1,nsample):
+    n = int(base**i)
+    if len(nbox) > 0 and n == nbox[-1]:
+      continue
+    nbox.append(n)
+    cover_number.append(covering_number(grid, n))
+  nbox = np.array(nbox)
+  cover_number = np.array(cover_number)
+  ans = linregress(np.log(nbox), np.log(cover_number))
+  return ans[0]
+
 def plot_slice(grid, contour = None, fname = None):
   import numpy as np 
   import matplotlib.pyplot as plt

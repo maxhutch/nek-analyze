@@ -5,6 +5,7 @@ from sys import argv
 import matplotlib.pyplot as plt
 import scipy as sp
 import scipy.linalg
+from scipy.stats import linregress
 
 """ Load the data """
 quiet = False
@@ -15,6 +16,7 @@ from nek import from_nek
 from my_utils import find_root, lagrange_matrix
 from tictoc import *
 from Grid import Grid, mixing_zone, plot_slice
+from Grid import fractal_dimension
 
 tic()
 pos, vel, t, speed, time, norder = from_nek(argv[1])
@@ -42,7 +44,7 @@ if not quiet:
 
 # setup the transformation
 ninterp = int(norder)
-gll  = pos[0:norder,0,0]
+gll  = pos[0:norder,0,0] - pos[0,0,0]
 dx_max = np.max(gll[1:] - gll[0:-1])
 cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
 trans = lagrange_matrix(gll,cart)
@@ -86,15 +88,17 @@ for i in range(nelm):
     pos_trans[:,i,j] = pos_tmp[:,:,:,j].flatten(order='F')
 toc('trans_pos')
 
-# Renorm
-#Tt_low = np.min(t_trans); Tt_high = np.max(t_trans)
-Tt_low = -0.0005; Tt_high = 0.0005
-T_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
-
 # extract for scatter plot
 tic()
-data = Grid(pos_trans, T_trans)
+data = Grid(pos_trans, t_trans)
 toc('to_grid')
+
+print(fractal_dimension(data))
+
+
+# Renorm
+Tt_low = -0.0005; Tt_high = 0.0005
+data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
 
 cont = np.zeros((data.shape[0]))
 tic()
