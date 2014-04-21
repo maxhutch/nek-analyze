@@ -94,23 +94,22 @@ def plot_slice(grid, contour = None, fname = None):
 def mixing_zone(grid, thresh = .1, plot = False, fname = None, time = -1.):
   import numpy as np
   from my_utils import find_root
+
+  L = np.max(grid.x[1,1,:,2]) - np.min(grid.x[1,1,:,2])
+
   f_xy = np.ones(grid.shape[2])
   for i in range(grid.shape[2]):
     f_xy[i] = np.average(grid.f[:,:,i])
 
-  visual_boundary = False
-  if visual_boundary:
-    boundaries = (find_root(grid.x[1,1,:,2], f_xy, y0 = thresh), find_root(grid.x[1,1,:,2], f_xy, y0 = 1-thresh))
-  else:
-    h = 0.
-    for i in range(f_xy.shape[0]):
-      if f_xy[i] < .5:
-        h += 2*f_xy[i]
-      else:
-        h += 2*(1.-f_xy[i])
-    h = h * (np.max(grid.x[1,1,:,2]) - np.min(grid.x[1,1,:,2])) / f_xy.shape[0]
-    boundaries = ((np.max(grid.x[1,1,:,2]) + np.min(grid.x[1,1,:,2]) + h)/2.,
-                  (np.max(grid.x[1,1,:,2]) + np.min(grid.x[1,1,:,2]) - h)/2.)
+  h = 0.
+  for i in range(f_xy.shape[0]):
+    if f_xy[i] < .5:
+      h += 2*f_xy[i]
+    else:
+      h += 2*(1.-f_xy[i])
+  hb = h * (np.max(grid.x[1,1,:,2]) - np.min(grid.x[1,1,:,2])) / f_xy.shape[0]
+  boundaries = ((np.max(grid.x[1,1,:,2]) + np.min(grid.x[1,1,:,2]) + hb)/2.,
+                  (np.max(grid.x[1,1,:,2]) + np.min(grid.x[1,1,:,2]) - hb)/2.)
   if fname != None:
     with open(fname, "a") as f:
       f.write("{:f} {:13.10f} {:13.10f}\n".format(time, boundaries[0], boundaries[1]))
@@ -122,4 +121,8 @@ def mixing_zone(grid, thresh = .1, plot = False, fname = None, time = -1.):
     ax1.plot(grid.x[1,1,:,2], f_xy, 'k-')
     ax1.vlines(boundaries, (0, 1), (thresh, 1-thresh))
 
-  return boundaries
+  f_m = np.where(grid.f[:,:,:] < .5, grid.f[:,:,:]*2, 2*(1.-grid.f[:,:,:]))
+  X = np.average(f_m)/h
+
+  return boundaries, X
+
