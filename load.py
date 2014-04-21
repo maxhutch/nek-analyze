@@ -18,22 +18,23 @@ parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, d
 parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
 parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
 parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
+parser.add_argument("-v", "--verbose", help="Should I be really verbose, that is wordy?", action="store_true", default=False)
 args = parser.parse_args()
 
 """ Load the data """
-quiet = False
+quiet = not args.verbose
 
 from sys import path
 path.append('./python/')
 from nek import from_nek
-from my_utils import find_root, lagrange_matrix
+from my_utils import find_root, lagrange_matrix, transform_elements
 from tictoc import *
 from Grid import Grid
 from Grid import mixing_zone
 from Grid import plot_slice
 from Grid import fractal_dimension
 
-if args.frame_end = -1:
+if args.frame_end == -1:
   args.frame_end = args.frame
 
 tic()
@@ -71,41 +72,7 @@ if not quiet:
   print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
   print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
 
-# Apply the transformation
-t_tmp = np.zeros((norder**2*ninterp,nelm), order='F')
-t_tmp2 = np.zeros((norder*ninterp**2,nelm), order = 'F')
-t_trans = np.zeros((ninterp**3,nelm), order = 'F')
-
-# Transform to uniform grid
-# z-first
-tic()
-t_p = np.reshape(np.transpose(np.reshape(t, (norder**2, norder, nelm), order='F'), (1,0,2)), (norder, norder**2*nelm), order='F')
-t_tmp = np.reshape(np.transpose(np.reshape(trans.dot(t_p), (ninterp, norder**2, nelm), order='F'), (1,0,2)), (norder**2*ninterp, nelm), order='F')
-toc('trans_z')
-
-# then x
-tic()
-t_tmp2 = np.reshape(trans.dot(np.reshape(t_tmp, (norder, ninterp*norder*nelm), order='F')), (ninterp**2*norder,nelm), order='F')
-toc('trans_x')
-
-# then y
-tic()
-t_p =     np.reshape(np.transpose(np.reshape(t_tmp2,         (ninterp, norder, ninterp, nelm),  order='F'), (1,0,2,3)), (norder, ninterp**2*nelm), order='F')
-t_trans = np.reshape(np.transpose(np.reshape(trans.dot(t_p), (ninterp, ninterp, ninterp, nelm), order='F'), (1,0,2,3)), (ninterp**3, nelm),        order='F')
-toc('trans_y')
-
-# Transform positions to uniform grid
-tic()
-pos_tmp = np.zeros((ninterp, ninterp, ninterp, 3), order='F')
-pos_trans = np.zeros((ninterp**3, nelm, 3), order='F')
-for i in range(nelm):
-  for j in range(ninterp):
-    pos_tmp[:,j,:,1] = pos[0,i,1] + cart[j]
-    pos_tmp[j,:,:,0] = pos[0,i,0] + cart[j] 
-    pos_tmp[:,:,j,2] = pos[0,i,2] + cart[j] 
-  for j in range(3):
-    pos_trans[:,i,j] = pos_tmp[:,:,:,j].flatten(order='F')
-toc('trans_pos')
+t_trans, pos_trans = transform_elements(t, pos, trans, cart)
 
 # extract for scatter plot
 tic()
@@ -113,7 +80,6 @@ data = Grid(pos_trans, t_trans)
 toc('to_grid')
 
 #print(fractal_dimension(data))
-
 
 # Renorm
 Tt_low = -0.0005; Tt_high = 0.0005

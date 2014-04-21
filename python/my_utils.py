@@ -42,3 +42,46 @@ def lagrange_matrix(A,B):
         M[j,i] = M[j,i] * (B[j] - A[k]) / (A[i] - A[k])
   return M
 
+def transform_elements(f, p, trans, cart):
+  from tictoc import tic, toc
+  import numpy as np
+  ninterp = trans.shape[0]
+  norder = trans.shape[1]
+  nelm = f.shape[1]
+
+  # Apply the transformation
+  f_tmp = np.zeros((norder**2*ninterp,nelm), order='F')
+  f_tmp2 = np.zeros((norder*ninterp**2,nelm), order = 'F')
+  f_trans = np.zeros((ninterp**3,nelm), order = 'F')
+
+  # Transform to uniform grid
+  # z-first
+  tic()
+  f_p = np.reshape(np.transpose(np.reshape(f, (norder**2, norder, nelm), order='F'), (1,0,2)), (norder, norder**2*nelm), order='F')
+  f_tmp = np.reshape(np.transpose(np.reshape(trans.dot(f_p), (ninterp, norder**2, nelm), order='F'), (1,0,2)), (norder**2*ninterp, nelm), order='F')
+  toc('trans_z')
+
+  # then x
+  tic()
+  f_tmp2 = np.reshape(trans.dot(np.reshape(f_tmp, (norder, ninterp*norder*nelm), order='F')), (ninterp**2*norder,nelm), order='F')
+  toc('trans_x')
+
+  # then y
+  tic()
+  f_p =     np.reshape(np.transpose(np.reshape(f_tmp2,         (ninterp, norder, ninterp, nelm),  order='F'), (1,0,2,3)), (norder, ninterp**2*nelm), order='F')
+  f_trans = np.reshape(np.transpose(np.reshape(trans.dot(f_p), (ninterp, ninterp, ninterp, nelm), order='F'), (1,0,2,3)), (ninterp**3, nelm),        order='F')
+  toc('trans_y')
+
+  # Transform positions to uniform grid
+  tic()
+  pos_tmp = np.zeros((ninterp, ninterp, ninterp, 3), order='F')
+  pos_trans = np.zeros((ninterp**3, nelm, 3), order='F')
+  for i in range(nelm):
+    for j in range(ninterp):
+      pos_tmp[:,j,:,1] = p[0,i,1] + cart[j]
+      pos_tmp[j,:,:,0] = p[0,i,0] + cart[j]
+      pos_tmp[:,:,j,2] = p[0,i,2] + cart[j]
+    for j in range(3):
+      pos_trans[:,i,j] = pos_tmp[:,:,:,j].flatten(order='F')
+  return f_trans, pos_trans
+
