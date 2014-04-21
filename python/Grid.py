@@ -77,7 +77,7 @@ def plot_slice(grid, contour = None, fname = None):
   plot_f = grid.f[:,center,:].ravel()
 
   image_x = 12
-  image_y = image_x * grid.shape[2] / grid.shape[0]
+  image_y = int(image_x * grid.shape[2] / grid.shape[0] + .5)
   fig = plt.figure(figsize=(image_x,image_y))
   pts = 72*72*image_x * image_y
   ax1 = plt.subplot(1,1,1)
