@@ -10,9 +10,14 @@ from scipy.stats import linregress
 from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("fname", help="Nek *.fld output file")
+parser.add_argument("-f", "--frame", help="[Starting] Frame number", type=int, default=1)
+parser.add_argument("-e", "--frame_end", help="Ending frame number", type=int, default=-1)
 parser.add_argument("-s", "--slice", help="Display slice", action="store_true")
 parser.add_argument("-c", "--contour", help="Display contour", action="store_true")
 parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, default = 1.)
+parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
+parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
+parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
 args = parser.parse_args()
 
 """ Load the data """
@@ -23,11 +28,17 @@ path.append('./python/')
 from nek import from_nek
 from my_utils import find_root, lagrange_matrix
 from tictoc import *
-from Grid import Grid, mixing_zone, plot_slice
+from Grid import Grid
+from Grid import mixing_zone
+from Grid import plot_slice
 from Grid import fractal_dimension
 
+if args.frame_end = -1:
+  args.frame_end = args.frame
+
 tic()
-pos, vel, t, speed, time, norder = from_nek(args.fname)
+fname = "{:s}0.f{:05d}".format(args.fname, args.frame)
+pos, vel, t, speed, time, norder = from_nek(fname)
 nelm = t.shape[1]
 toc('read')
 
@@ -108,50 +119,54 @@ toc('to_grid')
 Tt_low = -0.0005; Tt_high = 0.0005
 data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
 
+center = data.shape[1]/2
 if not args.contour:
   cont = None
 else:
   cont = np.zeros((data.shape[0]))
   tic()
-  center = data.shape[1]/2
   for i in range(data.shape[0]):
    cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
   toc('contour')
+if args.mixing_zone:
+  boundary, X = mixing_zone(data, plot = False, fname = 'mixing_zone_2.dat', time = time)
+  print("Mixing function: {:f}".format(X))
 
-mixing_zone(data, plot = False, fname = 'mixing_zone_2.dat', time = time)
+'''
 foo = data.f.ravel()
 print("Extra temperature {:f} \n".format(np.sum(np.abs(np.where(foo > 1, foo, 0)))))
+'''
 
 # Scatter plot of temperature (slice through pseudocolor in visit)
 tic()
 if args.slice:
   plot_slice(data, contour = cont)
 
-'''
-# Fourier analysis in 1 dim
-plt.figure()
-bx1 = plt.subplot(1,2,1)
-bx1.bar(  np.arange(int(data.shape[0]/2+1)),  abs(np.fft.rfft(data.f[:,center,int(data.shape[2]/2)])))
-plt.title('temperature')
-plt.xlabel('Mode')
-plt.ylabel('Amplitude')
-plt.xlim([0,10])
-bx2 = plt.subplot(1,2,2)
-bx2.bar(np.arange(int(data.shape[0]/2+1)),abs(np.fft.rfft(cont)))
-plt.title('contour')
-plt.xlabel('Mode')
-plt.ylabel('Amplitude')
-plt.xlim([0,10])
+if args.Fourier:
+  # Fourier analysis in 1 dim
+  plt.figure()
+  bx1 = plt.subplot(1,2,1)
+  bx1.bar(  np.arange(int(data.shape[0]/2+1)),  abs(np.fft.rfft(data.f[:,center,int(data.shape[2]/2)])))
+  plt.title('temperature')
+  plt.xlabel('Mode')
+  plt.ylabel('Amplitude')
+  plt.xlim([0,10])
+  bx2 = plt.subplot(1,2,2)
+  if args.contour:
+    bx2.bar(np.arange(int(data.shape[0]/2+1)),abs(np.fft.rfft(cont)))
+  plt.title('contour')
+  plt.xlabel('Mode')
+  plt.ylabel('Amplitude')
+  plt.xlim([0,10])
+  plt.savefig(argv[1]+'_spectrum.png')
 
-plt.savefig(argv[1]+'_spectrum.png')
+if args.mixing_cdf:
+  plt.figure()
+  ax1 = plt.subplot(1,1,1)
+  ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
+  plt.xlim([-.1,1.1])
+  plt.savefig(fname+'_cdf.png')
 
-plt.figure()
-ax1 = plt.subplot(1,1,1)
-ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
-plt.xlim([-.1,1.1])
-plt.savefig(argv[1]+'_cdf.png')
-
-'''
 plt.show()
 toc('plot')
 
