@@ -76,12 +76,13 @@ def plot_slice(grid, contour = None, fname = None):
   plot_y = grid.x[:,center,:,2].ravel()
   plot_f = grid.f[:,center,:].ravel()
 
-
-  fig = plt.figure(figsize=(12,12))
-  pts = 746496.
+  image_x = 12
+  image_y = image_x * grid.shape[2] / grid.shape[0]
+  fig = plt.figure(figsize=(image_x,image_y))
+  pts = 72*72*image_x * image_y
   ax1 = plt.subplot(1,1,1)
   plt.title('Grid Scatter plot')
-  ax1.scatter(plot_x, plot_y, c=plot_f, s=pts/plot_x.size, linewidths = 0.)
+  ax1.scatter(plot_x, plot_y, c=plot_f, s=pts/plot_x.size, marker="s", linewidths = 0.)
   plt.axis([np.min(plot_x), np.max(plot_x), np.min(plot_y), np.max(plot_y)])
   if contour != None:
     ax1.plot(grid.x[:,center,0,0], contour, 'k-')
