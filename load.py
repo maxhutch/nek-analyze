@@ -7,6 +7,14 @@ import scipy as sp
 import scipy.linalg
 from scipy.stats import linregress
 
+from argparse import ArgumentParser
+parser = ArgumentParser()
+parser.add_argument("fname", help="Nek *.fld output file")
+parser.add_argument("-s", "--slice", help="Display slice", action="store_true")
+parser.add_argument("-c", "--contour", help="Display contour", action="store_true")
+parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, default = 1.)
+args = parser.parse_args()
+
 """ Load the data """
 quiet = False
 
@@ -19,7 +27,7 @@ from Grid import Grid, mixing_zone, plot_slice
 from Grid import fractal_dimension
 
 tic()
-pos, vel, t, speed, time, norder = from_nek(argv[1])
+pos, vel, t, speed, time, norder = from_nek(args.fname)
 nelm = t.shape[1]
 toc('read')
 
@@ -43,7 +51,7 @@ if not quiet:
         extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
 
 # setup the transformation
-ninterp = int(norder)
+ninterp = int(args.ninterp*norder)
 gll  = pos[0:norder,0,0] - pos[0,0,0]
 dx_max = np.max(gll[1:] - gll[0:-1])
 cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
@@ -93,19 +101,22 @@ tic()
 data = Grid(pos_trans, t_trans)
 toc('to_grid')
 
-print(fractal_dimension(data))
+#print(fractal_dimension(data))
 
 
 # Renorm
 Tt_low = -0.0005; Tt_high = 0.0005
 data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
 
-cont = np.zeros((data.shape[0]))
-tic()
-center = data.shape[1]/2
-for i in range(data.shape[0]):
-  cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
-toc('contour')
+if not args.contour:
+  cont = None
+else:
+  cont = np.zeros((data.shape[0]))
+  tic()
+  center = data.shape[1]/2
+  for i in range(data.shape[0]):
+   cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
+  toc('contour')
 
 mixing_zone(data, plot = False, fname = 'mixing_zone_2.dat', time = time)
 foo = data.f.ravel()
@@ -113,7 +124,9 @@ print("Extra temperature {:f} \n".format(np.sum(np.abs(np.where(foo > 1, foo, 0)
 
 # Scatter plot of temperature (slice through pseudocolor in visit)
 tic()
-plot_slice(data, contour = cont)
+if args.slice:
+  plot_slice(data, contour = cont)
+
 '''
 # Fourier analysis in 1 dim
 plt.figure()
