@@ -89,6 +89,8 @@ for frame in range(args.frame, args.frame_end+1):
   # Renorm
   Tt_low = -0.0005; Tt_high = 0.0005
   data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
+  data.f = np.maximum(data.f, 0.)
+  data.f = np.minimum(data.f, 1.)
 
   center = data.shape[1]/2
   if not args.contour:
@@ -136,7 +138,8 @@ for frame in range(args.frame, args.frame_end+1):
     ax1 = plt.subplot(1,1,1)
     ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
     plt.xlim([-.1,1.1])
-    plt.savefig(args.name+'_cdf.png')
+    plt.ylim([0,1])
+    plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
   
   if args.frame == args.frame_end:
     plt.show()
@@ -144,7 +147,12 @@ for frame in range(args.frame, args.frame_end+1):
   toc('plot')
 
 from os import system
-if args.frame != args.frame_end and args.slice:
-  system("rm -f "+args.name+".mkv")
-  system("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+".mkv")
+if args.frame != args.frame_end:
+  if args.slice:
+    system("rm -f "+args.name+"-slice.mkv")
+    system("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv")
+  if args.mixing_cdf:
+    system("rm -f "+args.name+"-cdf.mkv")
+    system("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv")
+
 
