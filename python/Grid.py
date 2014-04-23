@@ -91,7 +91,7 @@ def plot_slice(grid, contour = None, fname = None):
   if fname != None:
     plt.savefig(fname)
 
-def mixing_zone(grid, thresh = .1, plot = False, fname = None, time = -1.):
+def mixing_zone(grid, thresh = .1):
   import numpy as np
   from my_utils import find_root
 
@@ -107,22 +107,10 @@ def mixing_zone(grid, thresh = .1, plot = False, fname = None, time = -1.):
       h += 2*f_xy[i]
     else:
       h += 2*(1.-f_xy[i])
-  hb = h * (np.max(grid.x[1,1,:,2]) - np.min(grid.x[1,1,:,2])) / f_xy.shape[0]
-  boundaries = ((np.max(grid.x[1,1,:,2]) + np.min(grid.x[1,1,:,2]) + hb)/2.,
-                  (np.max(grid.x[1,1,:,2]) + np.min(grid.x[1,1,:,2]) - hb)/2.)
-  if fname != None:
-    with open(fname, "a") as f:
-      f.write("{:f} {:13.10f} {:13.10f}\n".format(time, boundaries[0], boundaries[1]))
-
-  if plot:
-    import matplotlib.pyplot as plt
-    plt.figure()
-    ax1 = plt.subplot(1,1,1)
-    ax1.plot(grid.x[1,1,:,2], f_xy, 'k-')
-    ax1.vlines(boundaries, (0, 1), (thresh, 1-thresh))
+  hb = h * L / f_xy.shape[0]
 
   f_m = np.where(grid.f[:,:,:] < .5, grid.f[:,:,:]*2, 2*(1.-grid.f[:,:,:]))
-  X = np.average(f_m)/h
+  X = np.average(f_m)*grid.shape[2]/h
 
-  return boundaries, X
+  return hb, X
 

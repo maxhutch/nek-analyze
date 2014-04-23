@@ -5,7 +5,9 @@ from sys import argv
 import matplotlib.pyplot as plt
 import scipy as sp
 import scipy.linalg
+import json
 from scipy.stats import linregress
+from os.path import exists
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -36,7 +38,8 @@ from Grid import fractal_dimension
 
 if args.frame_end == -1:
   args.frame_end = args.frame
-
+args.series = (args.frame != args.frame_end)
+  
 for frame in range(args.frame, args.frame_end+1):
   # Load file
   tic()
@@ -101,9 +104,21 @@ for frame in range(args.frame, args.frame_end+1):
     for i in range(data.shape[0]):
      cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
     toc('contour')
+
   if args.mixing_zone:
-    boundary, X = mixing_zone(data, plot = False, fname = 'mixing_zone_2.dat', time = time)
-    print("Mixing function: {:f}".format(X))
+    h, X = mixing_zone(data)
+    fname = './{:s}-mixing.dat'.format(args.name)
+    if args.series:
+      if not exists(fname):
+        mixing_dict = {} 
+      else:
+        with open(fname,  'r') as f:
+          mixing_dict = json.load(f)
+      mixing_dict[time] = (h,X)
+      with open(fname,  'w') as f:
+        json.dump(mixing_dict, f, indent=2)
+    else:
+      print("Mixing (h,xi): {:f} {:f}".format(h,X))
 
   '''
   foo = data.f.ravel()
@@ -141,18 +156,32 @@ for frame in range(args.frame, args.frame_end+1):
     plt.ylim([0,1])
     plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
   
-  if args.frame == args.frame_end:
+  if not args.series:
     plt.show()
   plt.close('all')
   toc('plot')
 
 from os import system
-if args.frame != args.frame_end:
+if args.series:
   if args.slice:
     system("rm -f "+args.name+"-slice.mkv")
     system("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv")
   if args.mixing_cdf:
     system("rm -f "+args.name+"-cdf.mkv")
     system("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv")
-
+  if args.mixing_zone: 
+    fname = './{:s}-mixing.dat'.format(args.name)
+    with open(fname, 'r') as f:
+      mixing_dict = json.load(f)
+    time_series = sorted(mixing_dict.items())
+    times, vals = zip(*time_series)
+    hs, Xs = zip(*vals)
+    plt.figure()
+    ax1 = plt.subplot(1,2,1)
+    plt.ylim(ymin = 0.)
+    ax2 = plt.subplot(1,2,2)
+    ax1.plot(times, hs)
+    ax2.plot(times, Xs)
+    plt.ylim([0.,1.])
+    plt.show()
 
