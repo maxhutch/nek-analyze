@@ -11,17 +11,16 @@ from os.path import exists
 
 from sys import path
 path.append('./python/')
-from my_utils import find_root, lagrange_matrix, transform_elements
 from Grid import Grid
-from Grid import mixing_zone
-from Grid import plot_slice
 from Grid import fractal_dimension
 from tictoc import tic, toc
 
 
 def process(job):  
+  args = job[0]
+  frame = job[1]
+
   import matplotlib.pyplot as plt
-  import json
   from os.path import exists
   import numpy as np
   from sys import path
@@ -33,8 +32,8 @@ def process(job):
   from Grid import fractal_dimension
   from nek import from_nek
   from tictoc import tic, toc
-  args = job[0]
-  frame = job[1]
+
+  ans = {}
   # Load file
   tic()
   fname = "{:s}0.f{:05d}".format(args.name, frame)
@@ -101,17 +100,11 @@ def process(job):
 
   if args.mixing_zone:
     h_cabot, h_visual, X = mixing_zone(data)
-    fname = './{:s}-mixing.dat'.format(args.name)
-    if args.series:
-      if not exists(fname):
-        mixing_dict = {} 
-      else:
-        with open(fname,  'r') as f:
-          mixing_dict = json.load(f)
-      mixing_dict[time] = (h_cabot,h_visual,X)
-      with open(fname,  'w') as f:
-        json.dump(mixing_dict, f, indent=2)
-    else:
+    ans['h_cabot'] = h_cabot
+    ans['h_visual'] = h_visual
+    ans['Xi'] = X
+
+    if not args.series:
       print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(h_cabot,h_visual,X))
 
   '''
@@ -122,7 +115,7 @@ def process(job):
   # Scatter plot of temperature (slice through pseudocolor in visit)
   tic()
   if args.slice:
-    plot_slice(data, contour = cont, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
+    plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
 
   if args.Fourier:
     # Fourier analysis in 1 dim
@@ -149,11 +142,12 @@ def process(job):
     plt.xlim([-.1,1.1])
     plt.ylim([0,1])
     plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
-  
+
   if not args.series:
     plt.show()
   plt.close('all')
   toc('plot')
+  return (str(time), ans)
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -172,19 +166,19 @@ if args.frame_end == -1:
   args.frame_end = args.frame
 args.series = (args.frame != args.frame_end)
 
-
-
 """ Load the data """
 from toolz.curried import map
 from IPython.parallel import Client
 p = Client(profile='default')[:]
 pmap = p.map_sync
 jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
-stuff = pmap(process, jobs)
+if len(jobs) > 2:
+  stuff = pmap(process, jobs)
+else:
+  stuff = map(process, jobs)
+
 for job in stuff:
   continue
-#for frame in range(args.frame, args.frame_end+1):
-#  process(args, frame)
 
 from os import system
 Atwood = 1.e-3
@@ -198,11 +192,26 @@ if args.series:
     system("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv")
   if args.mixing_zone: 
     fname = './{:s}-mixing.dat'.format(args.name)
-    with open(fname, 'r') as f:
-      mixing_dict = json.load(f)
-    time_series = sorted(mixing_dict.items())
+    mixing_dict = {}
+    if exists(fname):
+      with open(fname, 'r') as f:
+        mixing_dict = json.load(f)
+   
+    for res in stuff:
+      if res[0] in mixing_dict:
+        mixing_dict[res[0]] = dict(list(mixing_dict[res[0]].items()) + list(res[1].items()))
+      else:
+        mixing_dict[res[0]] = res[1]
+    with open(fname, 'w') as f:
+      json.dump(mixing_dict,f)
+    
+    mixing_dict2 = [[float(elm[0]), elm[1]] for elm in mixing_dict.items()]
+    time_series = sorted(mixing_dict2)
     times, vals = zip(*time_series)
-    hs_cabot, hs_visual, Xs = zip(*vals)
+    hs_cabot = [d['h_cabot'] for d in vals]
+    hs_visual = [d['h_visual'] for d in vals]
+    Xs = [d['Xi'] for d in vals]
+    
     vs    = [(hs_cabot[i+1] - hs_cabot[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_cabot)-1)]
     vs.insert(0,0.); vs.append(0.)
     alpha_cabot = [vs[i]*vs[i]/(4*Atwood*g*hs_cabot[i]) for i in range(len(vs))]
