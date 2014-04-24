@@ -68,24 +68,17 @@ def fractal_dimension(grid, nsample = 25, base = 1.2):
   ans = linregress(np.log(nbox), np.log(cover_number))
   return ans[0]
 
-def plot_slice(grid, contour = None, fname = None):
+def plot_slice(grid, fname = None):
   import numpy as np 
   import matplotlib.pyplot as plt
   center = int(grid.shape[1]/2)
-  plot_x = grid.x[:,center,:,0].ravel()
-  plot_y = grid.x[:,center,:,2].ravel()
-  plot_f = grid.f[:,center,:].ravel()
 
   image_x = 12
   image_y = int(image_x * grid.shape[2] / grid.shape[0] + .5)
   fig = plt.figure(figsize=(image_x,image_y))
-  pts = 72*72*image_x * image_y
   ax1 = plt.subplot(1,1,1)
-  plt.title('Grid Scatter plot')
-  ax1.scatter(plot_x, plot_y, c=plot_f, s=pts/plot_x.size, marker="s", linewidths = 0.)
-  plt.axis([np.min(plot_x), np.max(plot_x), np.min(plot_y), np.max(plot_y)])
-  if contour != None:
-    ax1.plot(grid.x[:,center,0,0], contour, 'k-')
+  plt.title('Y-normal slice')
+  ax1.imshow(grid.f[:,center,:].transpose(), origin = 'lower', interpolation='bicubic')
   plt.xlabel('X')
   plt.ylabel('Z')
   if fname != None:
