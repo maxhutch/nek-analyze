@@ -9,38 +9,32 @@ import json
 from scipy.stats import linregress
 from os.path import exists
 
-from argparse import ArgumentParser
-parser = ArgumentParser()
-parser.add_argument("name", help="Nek *.fld output file")
-parser.add_argument("-f", "--frame", help="[Starting] Frame number", type=int, default=1)
-parser.add_argument("-e", "--frame_end", help="Ending frame number", type=int, default=-1)
-parser.add_argument("-s", "--slice", help="Display slice", action="store_true")
-parser.add_argument("-c", "--contour", help="Display contour", action="store_true")
-parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, default = 1.)
-parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
-parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
-parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
-parser.add_argument("-v", "--verbose", help="Should I be really verbose, that is wordy?", action="store_true", default=False)
-args = parser.parse_args()
-
-""" Load the data """
-quiet = not args.verbose
-
 from sys import path
 path.append('./python/')
-from nek import from_nek
 from my_utils import find_root, lagrange_matrix, transform_elements
-from tictoc import *
 from Grid import Grid
 from Grid import mixing_zone
 from Grid import plot_slice
 from Grid import fractal_dimension
+from tictoc import tic, toc
 
-if args.frame_end == -1:
-  args.frame_end = args.frame
-args.series = (args.frame != args.frame_end)
-  
-for frame in range(args.frame, args.frame_end+1):
+
+def process(job):  
+  import matplotlib.pyplot as plt
+  import json
+  from os.path import exists
+  import numpy as np
+  from sys import path
+  path.append('./python/')
+  from my_utils import find_root, lagrange_matrix, transform_elements
+  from Grid import Grid
+  from Grid import mixing_zone
+  from Grid import plot_slice
+  from Grid import fractal_dimension
+  from nek import from_nek
+  from tictoc import tic, toc
+  args = job[0]
+  frame = job[1]
   # Load file
   tic()
   fname = "{:s}0.f{:05d}".format(args.name, frame)
@@ -49,13 +43,13 @@ for frame in range(args.frame, args.frame_end+1):
   toc('read')
 
   # Print some stuff 
-  if not quiet:
+  if args.verbose:
     print("Extremal temperatures {:f}, {:f}".format(np.max(t), np.min(t)))
     print("Extremal u_z          {:f}, {:f}".format(np.max(vel[:,:,2]), np.min(vel[:,:,2])))
     print("Max speed: {:f}".format(np.max(speed)))
 
   # Learn about the mesh 
-  if frame == args.frame:
+  if True or frame == args.frame:
     origin = np.array([np.min(pos[:,:,0].flatten()),
                        np.min(pos[:,:,1].flatten()), 
                        np.min(pos[:,:,2].flatten())])
@@ -64,7 +58,7 @@ for frame in range(args.frame, args.frame_end+1):
                        np.max(pos[:,:,2].flatten())])
     extent = corner-origin
     size = np.array((corner - origin)/(pos[0,1,0] - pos[0,0,0]), dtype=int)
-    if not quiet:
+    if args.verbose:
       print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
             extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
 
@@ -74,10 +68,10 @@ for frame in range(args.frame, args.frame_end+1):
     dx_max = np.max(gll[1:] - gll[0:-1])
     cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
     trans = lagrange_matrix(gll,cart)
-    if not quiet:
+    if args.verbose:
       print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
       
-  if not quiet:
+  if args.verbose:
     print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
 
   t_trans, pos_trans = transform_elements(t, pos, trans, cart)
@@ -160,6 +154,37 @@ for frame in range(args.frame, args.frame_end+1):
     plt.show()
   plt.close('all')
   toc('plot')
+
+from argparse import ArgumentParser
+parser = ArgumentParser()
+parser.add_argument("name", help="Nek *.fld output file")
+parser.add_argument("-f", "--frame", help="[Starting] Frame number", type=int, default=1)
+parser.add_argument("-e", "--frame_end", help="Ending frame number", type=int, default=-1)
+parser.add_argument("-s", "--slice", help="Display slice", action="store_true")
+parser.add_argument("-c", "--contour", help="Display contour", action="store_true")
+parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, default = 1.)
+parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
+parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
+parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
+parser.add_argument("-v", "--verbose", help="Should I be really verbose, that is wordy?", action="store_true", default=False)
+args = parser.parse_args()
+if args.frame_end == -1:
+  args.frame_end = args.frame
+args.series = (args.frame != args.frame_end)
+
+
+
+""" Load the data """
+from toolz.curried import map
+from IPython.parallel import Client
+p = Client(profile='default')[:]
+pmap = p.map_sync
+jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
+stuff = pmap(process, jobs)
+for job in stuff:
+  continue
+#for frame in range(args.frame, args.frame_end+1):
+#  process(args, frame)
 
 from os import system
 Atwood = 1.e-3
