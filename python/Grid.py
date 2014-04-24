@@ -91,7 +91,7 @@ def plot_slice(grid, contour = None, fname = None):
   if fname != None:
     plt.savefig(fname)
 
-def mixing_zone(grid, thresh = .1):
+def mixing_zone(grid, thresh = .01):
   import numpy as np
   from my_utils import find_root
 
@@ -101,16 +101,21 @@ def mixing_zone(grid, thresh = .1):
   for i in range(grid.shape[2]):
     f_xy[i] = np.average(grid.f[:,:,i])
 
+  # Cabot's h
   h = 0.
   for i in range(f_xy.shape[0]):
     if f_xy[i] < .5:
       h += 2*f_xy[i]
     else:
       h += 2*(1.-f_xy[i])
-  hb = h * L / f_xy.shape[0]
+  h_cabot = (h * L / f_xy.shape[0])
+
+  # visual h
+  h_visual = ( find_root(grid.x[1,1,:,2], f_xy, y0 = thresh) 
+             - find_root(grid.x[1,1,:,2], f_xy, y0 = 1-thresh)) / 2.
 
   f_m = np.where(grid.f[:,:,:] < .5, grid.f[:,:,:]*2, 2*(1.-grid.f[:,:,:]))
   X = np.average(f_m)*grid.shape[2]/h
 
-  return hb, X
+  return h_cabot, h_visual, X
 

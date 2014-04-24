@@ -106,7 +106,7 @@ for frame in range(args.frame, args.frame_end+1):
     toc('contour')
 
   if args.mixing_zone:
-    h, X = mixing_zone(data)
+    h_cabot, h_visual, X = mixing_zone(data)
     fname = './{:s}-mixing.dat'.format(args.name)
     if args.series:
       if not exists(fname):
@@ -114,11 +114,11 @@ for frame in range(args.frame, args.frame_end+1):
       else:
         with open(fname,  'r') as f:
           mixing_dict = json.load(f)
-      mixing_dict[time] = (h,X)
+      mixing_dict[time] = (h_cabot,h_visual,X)
       with open(fname,  'w') as f:
         json.dump(mixing_dict, f, indent=2)
     else:
-      print("Mixing (h,xi): {:f} {:f}".format(h,X))
+      print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(h_cabot,h_visual,X))
 
   '''
   foo = data.f.ravel()
@@ -162,6 +162,8 @@ for frame in range(args.frame, args.frame_end+1):
   toc('plot')
 
 from os import system
+Atwood = 1.e-3
+g = 9.8
 if args.series:
   if args.slice:
     system("rm -f "+args.name+"-slice.mkv")
@@ -175,13 +177,26 @@ if args.series:
       mixing_dict = json.load(f)
     time_series = sorted(mixing_dict.items())
     times, vals = zip(*time_series)
-    hs, Xs = zip(*vals)
+    hs_cabot, hs_visual, Xs = zip(*vals)
+    vs    = [(hs_cabot[i+1] - hs_cabot[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_cabot)-1)]
+    vs.insert(0,0.); vs.append(0.)
+    alpha_cabot = [vs[i]*vs[i]/(4*Atwood*g*hs_cabot[i]) for i in range(len(vs))]
+
+    vs    = [(hs_visual[i+1] - hs_visual[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_visual)-1)]
+    vs.insert(0,0.); vs.append(0.)
+    alpha_visual = [vs[i]*vs[i]/(4*Atwood*g*hs_visual[i]) for i in range(len(vs))]
+
     plt.figure()
-    ax1 = plt.subplot(1,2,1)
-    plt.ylim(ymin = 0.)
-    ax2 = plt.subplot(1,2,2)
-    ax1.plot(times, hs)
-    ax2.plot(times, Xs)
+    ax1 = plt.subplot(1,3,1)
+    plt.ylim([0., max(hs_visual)])
+    ax1.plot(times, hs_cabot, times, hs_visual)
+
+    ax2 = plt.subplot(1,3,2)
+    plt.ylim([0., max(alpha_visual)])
+    ax2.plot(times, alpha_cabot,times, alpha_visual)
+
+    ax3 = plt.subplot(1,3,3)
     plt.ylim([0.,1.])
+    ax3.plot(times, Xs)
     plt.show()
 
