@@ -25,7 +25,9 @@ def process(job):
   import numpy as np
   from sys import path
   path.append('./python/')
-  from my_utils import find_root, lagrange_matrix, transform_elements
+  from my_utils import find_root, lagrange_matrix
+  from my_utils import transform_field_elements
+  from my_utils import transform_position_elements
   from Grid import Grid
   from Grid import mixing_zone
   from Grid import plot_slice, plot_spectrum
@@ -73,11 +75,13 @@ def process(job):
   if args.verbose:
     print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
 
-  t_trans, pos_trans = transform_elements(t, pos, trans, cart)
+  t_trans = transform_field_elements(t, trans, cart)
+  uz_trans = transform_field_elements(vel[:,:,2], trans, cart)
+  pos_trans = transform_position_elements(pos, trans, cart)
 
   # switch from list of elements to grid
   tic()
-  data = Grid(pos_trans, t_trans)
+  data = Grid(pos_trans, t_trans, uz_trans)
   toc('to_grid')
 
   #print(fractal_dimension(data))
@@ -118,7 +122,7 @@ def process(job):
     plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
 
   if args.Fourier:
-    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), slices = [.5, .75])
+    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), slices = [.25, .5, .75])
   
   if args.mixing_cdf:
     plt.figure()

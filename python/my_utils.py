@@ -42,7 +42,7 @@ def lagrange_matrix(A,B):
         M[j,i] = M[j,i] * (B[j] - A[k]) / (A[i] - A[k])
   return M
 
-def transform_elements(f, p, trans, cart):
+def transform_field_elements(f, trans, cart):
   from tictoc import tic, toc
   import numpy as np
   ninterp = trans.shape[0]
@@ -71,6 +71,14 @@ def transform_elements(f, p, trans, cart):
   f_p =     np.reshape(np.transpose(f_tmp2, (1,0,2,3)), (norder, ninterp**2*nelm), order='F')
   f_trans = np.reshape(np.transpose(np.reshape(trans.dot(f_p), (ninterp, ninterp, ninterp, nelm), order='F'), (1,0,2,3)), (ninterp**3, nelm),        order='F')
   toc('trans_y')
+  return f_trans
+
+def transform_position_elements(p, trans, cart):
+  from tictoc import tic, toc
+  import numpy as np
+  ninterp = trans.shape[0]
+  norder = trans.shape[1]
+  nelm = p.shape[1]
 
   # Transform positions to uniform grid
   tic()
@@ -93,5 +101,5 @@ def transform_elements(f, p, trans, cart):
     pos_tmp[:,:,:] = p[0,i,2] + block_z
     pos_trans[:,i,2] = pos_tmp[:,:,:].flatten(order='F')
   toc('trans_pos')
-  return f_trans, pos_trans
+  return pos_trans
 
