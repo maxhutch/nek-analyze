@@ -1,11 +1,14 @@
 
+Atwood = 1.e-3
+g = 9.8
+
 class Grid:
   def __init__(self, shape):
     self.shape = shape
     return
 
   """ Unpack list of elements into single grid """
-  def __init__(self, pos_elm, f_elm):
+  def __init__(self, pos_elm, f_elm, uz_elm = None):
     import numpy as np
     from scipy.special import cbrt
     dx = pos_elm[1,0,0] - pos_elm[0,0,0]
@@ -33,6 +36,17 @@ class Grid:
       self.f[root[0]:root[0]+order,
              root[1]:root[1]+order,
              root[2]:root[2]+order] = np.reshape(f_elm[:,i], (order,order,order), order='F')
+
+    ''' field grid '''
+    if uz_elm != None:
+      self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F')
+      for i in range(pos_elm.shape[1]):
+        root = np.array((pos_elm[0,i,:] - origin)/dx + .5, dtype=int)
+        self.uz[root[0]:root[0]+order,
+               root[1]:root[1]+order,
+               root[2]:root[2]+order] = np.reshape(uz_elm[:,i], (order,order,order), order='F')
+    else:
+      self.uz = None
 
 def covering_number(grid, N):
   import numpy as np
@@ -97,10 +111,10 @@ def plot_spectrum(grid, fname = None, slices = None):
   plt.yscale('log')
   plt.xlabel('Mode')
   plt.ylabel('Amplitude')
-  plt.ylim([10**(-3),10**4])
+#  plt.ylim([10**(-16),1])
 
-  modes_x = np.fft.fftfreq(grid.shape[0])
-  modes_y = np.fft.rfftfreq(grid.shape[1])
+  modes_x = np.fft.fftfreq(grid.shape[0], grid.x[1,0,0,0] - grid.x[0,0,0,0])
+  modes_y = np.fft.rfftfreq(grid.shape[1], grid.x[0,1,0,1] - grid.x[0,0,0,1])
   modes = np.zeros((modes_x.size, modes_y.size))
   for i in range(modes_x.size):
     for j in range(modes_y.size):
@@ -108,8 +122,11 @@ def plot_spectrum(grid, fname = None, slices = None):
 
   for zpos in slices:
     z = int(zpos * grid.shape[2])
-    spectrum = np.fft.rfft2(grid.f[:,:,z])
-    ax1.plot(modes.ravel(), np.abs(spectrum.ravel()), 'o')
+    spectrum = np.fft.rfft2(grid.f[:,:,z]) / (grid.shape[0]*grid.shape[1])
+    ax1.plot(modes.ravel(), Atwood * g * np.square(np.abs(spectrum.ravel())), 'o')
+    if grid.uz != None:
+      spectrum = np.fft.rfft2(grid.uz[:,:,z])/ (grid.shape[0]*grid.shape[1])
+      ax1.plot(modes.ravel(), np.square(np.abs(spectrum.ravel())), 'x')
 
   if fname != None:
     plt.savefig(fname)
