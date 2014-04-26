@@ -28,7 +28,7 @@ def process(job):
   from my_utils import find_root, lagrange_matrix, transform_elements
   from Grid import Grid
   from Grid import mixing_zone
-  from Grid import plot_slice
+  from Grid import plot_slice, plot_spectrum
   from Grid import fractal_dimension
   from nek import from_nek
   from tictoc import tic, toc
@@ -118,39 +118,8 @@ def process(job):
     plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
 
   if args.Fourier:
-    # Fourier analysis in 1 dim
-    plt.figure()
-    if args.contour:
-      bx1 = plt.subplot(1,2,1)
-    else:
-      bx1 = plt.subplot(1,1,1)
-    spectrum_center = np.fft.rfft2(data.f[:,:,int(data.shape[2]/2)])
-    spectrum_quarter = np.fft.rfft2(data.f[:,:,int(3*data.shape[2]/4)])
-    modes_x = np.fft.fftfreq(data.shape[0])
-    modes_y = np.fft.rfftfreq(data.shape[1])
-    modes = np.zeros((modes_x.size, modes_y.size))
-    for i in range(modes_x.size):
-      for j in range(modes_y.size):
-        modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
-#    modes = np.sqrt(np.outer(np.arange(int(data.shape[0]/2+1)), np.arange(int(data.shape[1]/2+1))))
-    bx1.plot(modes.ravel(), np.abs(spectrum_center.ravel()), 'bo')
-    bx1.plot(modes.ravel(), np.abs(spectrum_quarter.ravel()), 'ro')
-    plt.title('temperature')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel('Mode')
-    plt.ylabel('Log Amplitude')
-#    plt.xlim([0,0.5])
-    plt.ylim([10**(-3),10**4])
-    if args.contour:
-      bx2 = plt.subplot(1,2,2)
-      bx2.bar(np.arange(int(data.shape[0]/2+1)),abs(np.fft.rfft(cont)))
-      plt.title('contour')
-      plt.xlabel('Mode')
-      plt.ylabel('Amplitude')
-      plt.xlim([0,10])
-    plt.savefig("{:s}{:05d}-spectrum.png".format(args.name, frame))
-   
+    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), slices = [.5, .75])
+  
   if args.mixing_cdf:
     plt.figure()
     ax1 = plt.subplot(1,1,1)

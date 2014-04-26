@@ -84,6 +84,36 @@ def plot_slice(grid, fname = None):
   if fname != None:
     plt.savefig(fname)
 
+def plot_spectrum(grid, fname = None, slices = None):
+  import numpy as np 
+  import matplotlib.pyplot as plt
+  if slices == None:
+    slices = [.5]
+
+  plt.figure()
+  ax1 = plt.subplot(1,1,1)
+  plt.title('Temperature Spectrum')
+  plt.xscale('log')
+  plt.yscale('log')
+  plt.xlabel('Mode')
+  plt.ylabel('Amplitude')
+  plt.ylim([10**(-3),10**4])
+
+  modes_x = np.fft.fftfreq(grid.shape[0])
+  modes_y = np.fft.rfftfreq(grid.shape[1])
+  modes = np.zeros((modes_x.size, modes_y.size))
+  for i in range(modes_x.size):
+    for j in range(modes_y.size):
+      modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
+
+  for zpos in slices:
+    z = int(zpos * grid.shape[2])
+    spectrum = np.fft.rfft2(grid.f[:,:,z])
+    ax1.plot(modes.ravel(), np.abs(spectrum.ravel()), 'o')
+
+  if fname != None:
+    plt.savefig(fname)
+
 def mixing_zone(grid, thresh = .01):
   import numpy as np
   from my_utils import find_root
