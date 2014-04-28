@@ -29,7 +29,7 @@ def process(job):
   from my_utils import transform_field_elements
   from my_utils import transform_position_elements
   from Grid import Grid
-  from Grid import mixing_zone
+  from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum
   from Grid import fractal_dimension
   from nek import from_nek
@@ -75,13 +75,16 @@ def process(job):
   if args.verbose:
     print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
 
-  t_trans = transform_field_elements(t, trans, cart)
-  uz_trans = transform_field_elements(vel[:,:,2], trans, cart)
   pos_trans = transform_position_elements(pos, trans, cart)
+  t_trans = transform_field_elements(t, trans, cart)
+  ux_trans = transform_field_elements(vel[:,:,0], trans, cart)
+  uy_trans = transform_field_elements(vel[:,:,1], trans, cart)
+  uz_trans = transform_field_elements(vel[:,:,2], trans, cart)
+#  speed_trans = transform_field_elements(speed, trans, cart)
 
   # switch from list of elements to grid
   tic()
-  data = Grid(pos_trans, t_trans, uz_trans)
+  data = Grid(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
   toc('to_grid')
 
   #print(fractal_dimension(data))
@@ -111,6 +114,14 @@ def process(job):
     if not args.series:
       print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(h_cabot,h_visual,X))
 
+  if True:
+    P, K = energy_budget(data)
+    ans['P'] = P
+    ans['K'] = K
+
+    if not args.series:
+      print("Energy Budget (P,K): {:e} {:e}".format(P,K))
+
   '''
   foo = data.f.ravel()
   print("Extra temperature {:f} \n".format(np.sum(np.abs(np.where(foo > 1, foo, 0)))))
@@ -122,7 +133,7 @@ def process(job):
     plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
 
   if args.Fourier:
-    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), slices = [.25, .5, .75])
+    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), slices = [.5])
   
   if args.mixing_cdf:
     plt.figure()
@@ -203,7 +214,9 @@ if args.series:
     hs_cabot = [d['h_cabot'] for d in vals]
     hs_visual = [d['h_visual'] for d in vals]
     Xs = [d['Xi'] for d in vals]
-    
+    Ps = [d['P'] for d in vals]
+    Ks = [d['K'] for d in vals]
+
     vs    = [(hs_cabot[i+1] - hs_cabot[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_cabot)-1)]
     vs.insert(0,0.); vs.append(0.)
     alpha_cabot = [vs[i]*vs[i]/(4*Atwood*g*hs_cabot[i]) for i in range(len(vs))]
@@ -224,5 +237,9 @@ if args.series:
     ax3 = plt.subplot(1,3,3)
     plt.ylim([0.,1.])
     ax3.plot(times, Xs)
+
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.plot(times, np.divide(Ps, np.square(hs_cabot)), times, np.divide(Ks, np.square(hs_cabot)))
     plt.show()
 

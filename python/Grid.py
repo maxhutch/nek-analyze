@@ -8,7 +8,7 @@ class Grid:
     return
 
   """ Unpack list of elements into single grid """
-  def __init__(self, pos_elm, f_elm, uz_elm = None):
+  def __init__(self, pos_elm, f_elm, ux_elm = None, uy_elm = None, uz_elm = None, speed_elm = None):
     import numpy as np
     from scipy.special import cbrt
     dx = pos_elm[1,0,0] - pos_elm[0,0,0]
@@ -38,6 +38,29 @@ class Grid:
              root[2]:root[2]+order] = np.reshape(f_elm[:,i], (order,order,order), order='F')
 
     ''' field grid '''
+    if ux_elm != None:
+      self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F')
+      for i in range(pos_elm.shape[1]):
+        root = np.array((pos_elm[0,i,:] - origin)/dx + .5, dtype=int)
+        self.ux[root[0]:root[0]+order,
+               root[1]:root[1]+order,
+               root[2]:root[2]+order] = np.reshape(ux_elm[:,i], (order,order,order), order='F')
+    else:
+      self.ux = None
+
+    ''' field grid '''
+    if uy_elm != None:
+      self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F')
+      for i in range(pos_elm.shape[1]):
+        root = np.array((pos_elm[0,i,:] - origin)/dx + .5, dtype=int)
+        self.uy[root[0]:root[0]+order,
+               root[1]:root[1]+order,
+               root[2]:root[2]+order] = np.reshape(uy_elm[:,i], (order,order,order), order='F')
+    else:
+      self.uy = None
+
+
+    ''' field grid '''
     if uz_elm != None:
       self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F')
       for i in range(pos_elm.shape[1]):
@@ -47,6 +70,13 @@ class Grid:
                root[2]:root[2]+order] = np.reshape(uz_elm[:,i], (order,order,order), order='F')
     else:
       self.uz = None
+
+    ''' field grid '''
+    if self.ux != None and self.uy != None and self.uz != None:
+      self.speed = np.sqrt(np.square(self.ux) + np.square(self.uy) + np.square(self.uz))
+    else:
+      self.speed = None
+
 
 def covering_number(grid, N):
   import numpy as np
@@ -104,14 +134,14 @@ def plot_spectrum(grid, fname = None, slices = None):
   if slices == None:
     slices = [.5]
 
-  plt.figure()
+  plt.figure(figsize=(12,12))
   ax1 = plt.subplot(1,1,1)
-  plt.title('Temperature Spectrum')
+  plt.title('Energy Spectrum')
   plt.xscale('log')
   plt.yscale('log')
-  plt.xlabel('Mode')
+  plt.xlabel('Mode Number')
   plt.ylabel('Amplitude')
-#  plt.ylim([10**(-16),1])
+  plt.ylim([10**(-20),.25*Atwood*g])
 
   modes_x = np.fft.fftfreq(grid.shape[0], grid.x[1,0,0,0] - grid.x[0,0,0,0])
   modes_y = np.fft.rfftfreq(grid.shape[1], grid.x[0,1,0,1] - grid.x[0,0,0,1])
@@ -119,14 +149,25 @@ def plot_spectrum(grid, fname = None, slices = None):
   for i in range(modes_x.size):
     for j in range(modes_y.size):
       modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
-
+  plt.xlim([modes_y[1]/1.5, np.max(modes)*1.5])
   for zpos in slices:
     z = int(zpos * grid.shape[2])
     spectrum = np.fft.rfft2(grid.f[:,:,z]) / (grid.shape[0]*grid.shape[1])
-    ax1.plot(modes.ravel(), Atwood * g * np.square(np.abs(spectrum.ravel())), 'o')
+    ax1.plot(modes.ravel(), .25 * Atwood * g * np.square(np.abs(spectrum.ravel())), 'o', label='P')
     if grid.uz != None:
-      spectrum = np.fft.rfft2(grid.uz[:,:,z])/ (grid.shape[0]*grid.shape[1])
-      ax1.plot(modes.ravel(), np.square(np.abs(spectrum.ravel())), 'x')
+      spectrum = np.square(np.abs(np.fft.rfft2(grid.uz[:,:,z]))/ (grid.shape[0]*grid.shape[1]))
+      ax1.plot(modes.ravel(), .5*spectrum.ravel(), 'x', label='K_z')
+    if grid.ux != None and grid.uy != None and grid.uz != None:
+      spectrum += np.square(np.abs(np.fft.rfft2(grid.ux[:,:,z])) / (grid.shape[0]*grid.shape[1]))
+      spectrum += np.square(np.abs(np.fft.rfft2(grid.uy[:,:,z])) / (grid.shape[0]*grid.shape[1]))
+      ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
+
+  plt.legend(loc=3)
+  
+  xs = np.sort(modes.ravel())
+  ys = xs**(-5./3.) 
+  for i in range(9):
+    ax1.plot(xs, 10**(1.-2.*i) * ys, 'k--')
 
   if fname != None:
     plt.savefig(fname)
@@ -158,4 +199,19 @@ def mixing_zone(grid, thresh = .01):
   X = np.average(f_m)*grid.shape[2]/h
 
   return h_cabot, h_visual, X
+
+def energy_budget(grid):
+  import numpy as np
+  from my_utils import find_root
+
+  # Potential
+  dV = np.prod(grid.x[1,1,1,:]-grid.x[0,0,0,:])
+  U = 0.
+  for i in range(grid.shape[2]):
+    U = U - np.sum(grid.f[:,:,i]) * grid.x[0,0,i,2] * dV
+  U0 = np.prod(grid.shape)/2. * dV *grid.x[0,0,int(grid.shape[2]*3./4.),2]
+
+  # Kinetic
+  K = np.sum(np.square(grid.speed))*dV/2.
+  return Atwood*g*(U0 - U), K
 
