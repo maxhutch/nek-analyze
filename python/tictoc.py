@@ -1,4 +1,4 @@
-print_timers = False
+print_timers = True
 
 """ Timers from SO """
 def tic():
@@ -10,7 +10,7 @@ def toc(label):
     import time
     if 'startTime_for_tictoc' in globals():
       if print_timers:
-        print("    > " + str(time.time() - startTime_for_tictoc) + "s in " + label)
+        print("    > {:f}s in {:s}".format(time.time() - startTime_for_tictoc, label))
     else:
         print("Toc: start time not set")
 
