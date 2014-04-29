@@ -39,7 +39,7 @@ def process(job):
   # Load file
   tic()
   fname = "{:s}0.f{:05d}".format(args.name, frame)
-  pos, vel, t, speed, time, norder = from_nek(fname)
+  pos, vel, t, time, norder = from_nek(fname)
   nelm = t.shape[1]
   toc('read')
 
