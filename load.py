@@ -43,12 +43,6 @@ def process(job):
   nelm = t.shape[1]
   toc('read')
 
-  # Print some stuff 
-  if args.verbose:
-    print("Extremal temperatures {:f}, {:f}".format(np.max(t), np.min(t)))
-    print("Extremal u_z          {:f}, {:f}".format(np.max(vel[:,:,2]), np.min(vel[:,:,2])))
-    print("Max speed: {:f}".format(np.max(speed)))
-
   # Learn about the mesh 
   if True or frame == args.frame:
     origin = np.array([np.min(pos[:,:,0].flatten()),
@@ -58,7 +52,8 @@ def process(job):
                        np.max(pos[:,:,1].flatten()), 
                        np.max(pos[:,:,2].flatten())])
     extent = corner-origin
-    size = np.array((corner - origin)/(pos[0,1,0] - pos[0,0,0]), dtype=int)
+    elm_displace = max(pos[0,1,0] - pos[0,0,0], pos[0,1,1] - pos[0,0,1], pos[0,1,2] - pos[0,0,2])
+    size = np.array(extent/elm_displace, dtype=int)
     if args.verbose:
       print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
             extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
@@ -71,9 +66,6 @@ def process(job):
     trans = lagrange_matrix(gll,cart)
     if args.verbose:
       print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
-      
-  if args.verbose:
-    print("Cell Pe: {:f}, Cell Re: {:f}".format(np.max(speed)*dx_max/2.e-9, np.max(speed)*dx_max/8.9e-7))
 
   pos_trans = transform_position_elements(pos, trans, cart)
   t_trans = transform_field_elements(t, trans, cart)
@@ -81,6 +73,14 @@ def process(job):
   uy_trans = transform_field_elements(vel[:,:,1], trans, cart)
   uz_trans = transform_field_elements(vel[:,:,2], trans, cart)
 #  speed_trans = transform_field_elements(speed, trans, cart)
+
+  # Print some stuff 
+  if args.verbose:
+    print("Extremal temperatures {:f}, {:f}".format(np.max(t_trans), np.min(t_trans)))
+    print("Extremal u_z          {:f}, {:f}".format(np.max(uz_trans), np.min(uz_trans)))
+    max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
+    print("Max speed: {:f}".format(max_speed))
+    print("Cell Pe: {:f}, Cell Re: {:f}".format(max_speed*dx_max/1.99e-9, max_speed*dx_max/8.9e-7))
 
   # switch from list of elements to grid
   tic()
