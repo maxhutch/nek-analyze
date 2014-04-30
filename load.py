@@ -8,7 +8,6 @@ import scipy.linalg
 import json
 from scipy.stats import linregress
 from os.path import exists
-import gc
 
 from Grid import Grid
 from Grid import fractal_dimension
@@ -20,6 +19,8 @@ def process(job):
   frame = job[1]
 
   import matplotlib.pyplot as plt
+  import json
+  import gc
   from os.path import exists
   import numpy as np
   from my_utils import find_root, lagrange_matrix
@@ -33,6 +34,10 @@ def process(job):
   from tictoc import tic, toc
 
   ans = {}
+  # Load params
+  with open("{:s}.json".format(args.name), 'r') as f:
+    params = json.load(f)
+
   # Load file
   tic()
   fname = "{:s}0.f{:05d}".format(args.name, frame)
@@ -76,12 +81,14 @@ def process(job):
   vel = None; gc.collect()
 
   # Print some stuff 
+  max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
+  ans['PeCell'] = max_speed*dx_max/params['conductivity']
+  ans['ReCell'] = max_speed*dx_max/params['viscosity']
   if args.verbose:
     print("Extremal temperatures {:f}, {:f}".format(np.max(t_trans), np.min(t_trans)))
     print("Extremal u_z          {:f}, {:f}".format(np.max(uz_trans), np.min(uz_trans)))
-    max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
     print("Max speed: {:f}".format(max_speed))
-    print("Cell Pe: {:f}, Cell Re: {:f}".format(max_speed*dx_max/1.99e-9, max_speed*dx_max/8.9e-7))
+    print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
 
   # switch from list of elements to grid
   tic()
@@ -91,6 +98,7 @@ def process(job):
   #print(fractal_dimension(data))
 
   # Renorm
+  ans['TMax'] = np.max(np.abs(data.f))
   Tt_low = -0.0005; Tt_high = 0.0005
   data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
   data.f = np.maximum(data.f, 0.)
@@ -172,6 +180,12 @@ args.series = (args.frame != args.frame_end)
 """ Load the data """
 from toolz.curried import map
 from IPython.parallel import Client
+
+# Load params
+with open("{:s}.json".format(args.name), 'r') as f:
+  params = json.load(f)
+params['g'] = 9.8
+
 p = Client(profile='default')[:]
 pmap = p.map_sync
 jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
@@ -184,9 +198,32 @@ for job in stuff:
   continue
 
 from os import system
-Atwood = 1.e-3
-g = 9.8
 if args.series:
+  fname = './{:s}-results.dat'.format(args.name)
+  results = {}
+  if exists(fname):
+    with open(fname, 'r') as f:
+      results = json.load(f)
+ 
+  for res in stuff:
+    if res[0] in results:
+      results[res[0]] = dict(list(results[res[0]].items()) + list(res[1].items()))
+    else:
+      results[res[0]] = res[1]
+  with open(fname, 'w') as f:
+    json.dump(results,f)
+  
+  results_with_times = sorted([[float(elm[0]), elm[1]] for elm in results.items()])
+  times, vals = zip(*results_with_times)
+
+
+  PeCs  = [d['PeCell'] for d in vals]
+  TMaxs = np.array([d['TMax'] for d in vals])
+  plt.figure()
+  ax1 = plt.subplot(1,1,1)
+  ax1.plot(times, PeCs, times, TMaxs*2./params['atwood'])
+
+
   if args.slice:
     system("rm -f "+args.name+"-slice.mkv")
     system("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv")
@@ -197,36 +234,15 @@ if args.series:
     system("rm -f "+args.name+"-spectrum.mkv")
     system("avconv -f image2 -i "+args.name+"%05d-spectrum.png -c:v h264 "+args.name+"-spectrum.mkv") 
   if args.mixing_zone: 
-    fname = './{:s}-mixing.dat'.format(args.name)
-    mixing_dict = {}
-    if exists(fname):
-      with open(fname, 'r') as f:
-        mixing_dict = json.load(f)
-   
-    for res in stuff:
-      if res[0] in mixing_dict:
-        mixing_dict[res[0]] = dict(list(mixing_dict[res[0]].items()) + list(res[1].items()))
-      else:
-        mixing_dict[res[0]] = res[1]
-    with open(fname, 'w') as f:
-      json.dump(mixing_dict,f)
-    
-    mixing_dict2 = [[float(elm[0]), elm[1]] for elm in mixing_dict.items()]
-    time_series = sorted(mixing_dict2)
-    times, vals = zip(*time_series)
     hs_cabot = [d['h_cabot'] for d in vals]
+    vs_cabot = [(hs_cabot[i+1] - hs_cabot[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_cabot)-1)]
+    vs_cabot.insert(0,0.); vs_cabot.append(0.)
+    alpha_cabot = [vs_cabot[i]*vs_cabot[i]/(4*params['atwood']*params['g']*hs_cabot[i]) for i in range(len(vs_cabot))]
+
     hs_visual = [d['h_visual'] for d in vals]
-    Xs = [d['Xi'] for d in vals]
-    Ps = [d['P'] for d in vals]
-    Ks = [d['K'] for d in vals]
-
-    vs    = [(hs_cabot[i+1] - hs_cabot[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_cabot)-1)]
-    vs.insert(0,0.); vs.append(0.)
-    alpha_cabot = [vs[i]*vs[i]/(4*Atwood*g*hs_cabot[i]) for i in range(len(vs))]
-
-    vs    = [(hs_visual[i+1] - hs_visual[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_visual)-1)]
-    vs.insert(0,0.); vs.append(0.)
-    alpha_visual = [vs[i]*vs[i]/(4*Atwood*g*hs_visual[i]) for i in range(len(vs))]
+    vs_visual = [(hs_visual[i+1] - hs_visual[i-1])/(float(times[i+1])-float(times[i-1])) for i in range(1,len(hs_visual)-1)]
+    vs_visual.insert(0,0.); vs_visual.append(0.)
+    alpha_visual = [vs_visual[i]*vs_visual[i]/(4*params['atwood']*params['g']*hs_visual[i]) for i in range(len(vs_visual))]
 
     plt.figure()
     ax1 = plt.subplot(1,3,1)
@@ -237,11 +253,14 @@ if args.series:
     plt.ylim([0., max(alpha_visual)])
     ax2.plot(times, alpha_cabot,times, alpha_visual)
 
+    Xs = [d['Xi'] for d in vals]
     ax3 = plt.subplot(1,3,3)
     plt.ylim([0.,1.])
     ax3.plot(times, Xs)
 
     plt.figure()
+    Ps = [d['P'] for d in vals]
+    Ks = [d['K'] for d in vals]
     ax1 = plt.subplot(1,1,1)
     ax1.plot(times, np.divide(Ps, np.square(hs_cabot)), times, np.divide(Ks, np.square(hs_cabot)))
     plt.show()
