@@ -10,8 +10,6 @@ from scipy.stats import linregress
 from os.path import exists
 import gc
 
-from sys import path
-path.append('./python/')
 from Grid import Grid
 from Grid import fractal_dimension
 from tictoc import tic, toc
@@ -24,8 +22,6 @@ def process(job):
   import matplotlib.pyplot as plt
   from os.path import exists
   import numpy as np
-  from sys import path
-  path.append('./python/')
   from my_utils import find_root, lagrange_matrix
   from my_utils import transform_field_elements
   from my_utils import transform_position_elements
