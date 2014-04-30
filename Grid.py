@@ -158,15 +158,32 @@ def plot_spectrum(grid, fname = None, slices = None):
   plt.xlim([modes_y[1]/1.5, np.max(modes)*1.5])
   for zpos in slices:
     z = int(zpos * grid.shape[2])
+
+    # compute Taylor microscale
     spectrum = np.fft.rfft2(grid.f[:,:,z]) / (grid.shape[0]*grid.shape[1])
     ax1.plot(modes.ravel(), .25 * Atwood * g * np.square(np.abs(spectrum.ravel())), 'o', label='P')
     if grid.uz != None:
+      tmp = np.average(np.square((grid.uz[:,:,z+1] - grid.uz[:,:,z-1])/(grid.x[0,0,z+1,2] - grid.x[0,0,z-1,2]))) 
+      taylor_z = np.sqrt(np.average(np.square(grid.uz[:,:,z])) / tmp)
+      kolmog_z = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
       spectrum = np.square(np.abs(np.fft.rfft2(grid.uz[:,:,z]))/ (grid.shape[0]*grid.shape[1]))
       ax1.plot(modes.ravel(), .5*spectrum.ravel(), 'x', label='K_z')
+      ax1.vlines(1./taylor_z, 1.e-20, 1., label='lambda_z', color='g', linestyles='dashdot')
+      ax1.vlines(1./kolmog_z, 1.e-20, 1., label='eta_z', color='g', linestyles='dotted')
     if grid.ux != None and grid.uy != None and grid.uz != None:
+      tmp = np.average(np.square((grid.uy[:,2:,z] - grid.uy[:,:-2,z])/(grid.x[0,2,z,1] - grid.x[0,0,z,1]))) 
+      taylor_y = np.sqrt(np.average(np.square(grid.uy[:,1:-1,z])) / tmp)
+      kolmog_y = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
+
+      tmp = np.average(np.square((grid.ux[2:,:,z] - grid.ux[:-2,:,z])/(grid.x[2,0,z,0] - grid.x[0,0,z,0]))) 
+      taylor_x = np.sqrt(np.average(np.square(grid.uy[1:-1,:,z])) / tmp)
+      kolmog_x = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
+
       spectrum += np.square(np.abs(np.fft.rfft2(grid.ux[:,:,z])) / (grid.shape[0]*grid.shape[1]))
       spectrum += np.square(np.abs(np.fft.rfft2(grid.uy[:,:,z])) / (grid.shape[0]*grid.shape[1]))
       ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
+      ax1.vlines(2./(taylor_x+taylor_y), 1.e-20, 1., label='lambda_xy', color='y', linestyles='dashdot')
+      ax1.vlines(2./(kolmog_z+kolmog_y), 1.e-20, 1., label='eta_xy', color='y', linestyles='dotted')
 
   plt.legend(loc=3)
   
