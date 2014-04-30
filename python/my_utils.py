@@ -49,11 +49,6 @@ def transform_field_elements(f, trans, cart):
   norder = trans.shape[1]
   nelm = f.shape[1]
 
-  # Apply the transformation
-  f_tmp = np.zeros((norder**2*ninterp,nelm), order='F')
-  f_tmp2 = np.zeros((norder*ninterp**2,nelm), order = 'F')
-  f_trans = np.zeros((ninterp**3,nelm), order = 'F')
-
   # Transform to uniform grid
   # z-first
   tic()

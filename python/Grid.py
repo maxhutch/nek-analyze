@@ -11,6 +11,7 @@ class Grid:
   def __init__(self, pos_elm, f_elm, ux_elm = None, uy_elm = None, uz_elm = None, speed_elm = None):
     import numpy as np
     from scipy.special import cbrt
+    import gc
     dx = pos_elm[1,0,0] - pos_elm[0,0,0]
     order = int(cbrt(pos_elm.shape[0]))
     origin = np.array([np.min(pos_elm[:,:,0]),
@@ -20,14 +21,6 @@ class Grid:
                        np.max(pos_elm[:,:,1]),
                        np.max(pos_elm[:,:,2])])
     self.shape = np.array((corner - origin)/dx + .5, dtype=int)+1
-    ''' position grid '''
-    self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F')
-    for i in range(self.shape[0]):
-      self.x[i,:,:,0] = dx*i + origin[0]
-    for i in range(self.shape[1]):
-      self.x[:,i,:,1] = dx*i + origin[1]
-    for i in range(self.shape[2]):
-      self.x[:,:,i,2] = dx*i + origin[2]
 
     ''' field grid '''
     self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F')
@@ -36,6 +29,7 @@ class Grid:
       self.f[root[0]:root[0]+order,
              root[1]:root[1]+order,
              root[2]:root[2]+order] = np.reshape(f_elm[:,i], (order,order,order), order='F')
+    f_elm = None; gc.collect()
 
     ''' field grid '''
     if ux_elm != None:
@@ -47,6 +41,7 @@ class Grid:
                root[2]:root[2]+order] = np.reshape(ux_elm[:,i], (order,order,order), order='F')
     else:
       self.ux = None
+    ux_elm = None; gc.collect()
 
     ''' field grid '''
     if uy_elm != None:
@@ -58,6 +53,7 @@ class Grid:
                root[2]:root[2]+order] = np.reshape(uy_elm[:,i], (order,order,order), order='F')
     else:
       self.uy = None
+    uy_elm = None; gc.collect()
 
 
     ''' field grid '''
@@ -70,6 +66,8 @@ class Grid:
                root[2]:root[2]+order] = np.reshape(uz_elm[:,i], (order,order,order), order='F')
     else:
       self.uz = None
+    uz_elm = None; gc.collect()
+    pos_elm = None; gc.collect()
 
     ''' field grid '''
     if self.ux != None and self.uy != None and self.uz != None:
@@ -77,6 +75,14 @@ class Grid:
     else:
       self.speed = None
 
+    ''' position grid '''
+    self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F')
+    for i in range(self.shape[0]):
+      self.x[i,:,:,0] = dx*i + origin[0]
+    for i in range(self.shape[1]):
+      self.x[:,i,:,1] = dx*i + origin[1]
+    for i in range(self.shape[2]):
+      self.x[:,:,i,2] = dx*i + origin[2]
 
 def covering_number(grid, N):
   import numpy as np

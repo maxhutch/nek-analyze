@@ -8,6 +8,7 @@ import scipy.linalg
 import json
 from scipy.stats import linregress
 from os.path import exists
+import gc
 
 from sys import path
 path.append('./python/')
@@ -45,12 +46,12 @@ def process(job):
 
   # Learn about the mesh 
   if True or frame == args.frame:
-    origin = np.array([np.min(pos[:,:,0].flatten()),
-                       np.min(pos[:,:,1].flatten()), 
-                       np.min(pos[:,:,2].flatten())])
-    corner = np.array([np.max(pos[:,:,0].flatten()), 
-                       np.max(pos[:,:,1].flatten()), 
-                       np.max(pos[:,:,2].flatten())])
+    origin = np.array([np.min(pos[:,:,0]),
+                       np.min(pos[:,:,1]), 
+                       np.min(pos[:,:,2])])
+    corner = np.array([np.max(pos[:,:,0]), 
+                       np.max(pos[:,:,1]), 
+                       np.max(pos[:,:,2])])
     extent = corner-origin
     elm_displace = max(pos[0,1,0] - pos[0,0,0], pos[0,1,1] - pos[0,0,1], pos[0,1,2] - pos[0,0,2])
     size = np.array(extent/elm_displace, dtype=int)
@@ -68,11 +69,15 @@ def process(job):
       print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
 
   pos_trans = transform_position_elements(pos, trans, cart)
+  pos = None; gc.collect()
   t_trans = transform_field_elements(t, trans, cart)
-  ux_trans = transform_field_elements(vel[:,:,0], trans, cart)
-  uy_trans = transform_field_elements(vel[:,:,1], trans, cart)
+  t = None; gc.collect()
   uz_trans = transform_field_elements(vel[:,:,2], trans, cart)
-#  speed_trans = transform_field_elements(speed, trans, cart)
+  vel = np.delete(vel, 2, 2); gc.collect()
+  uy_trans = transform_field_elements(vel[:,:,1], trans, cart)
+  vel = np.delete(vel, 1, 2); gc.collect()
+  ux_trans = transform_field_elements(vel[:,:,0], trans, cart)
+  vel = None; gc.collect()
 
   # Print some stuff 
   if args.verbose:
@@ -142,6 +147,8 @@ def process(job):
     plt.xlim([-.1,1.1])
     plt.ylim([0,1])
     plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
+
+  data = 0.
 
   if not args.series:
     plt.show()
