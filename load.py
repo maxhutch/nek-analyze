@@ -1,27 +1,12 @@
 #!/usr/bin/python3
 
-import numpy as np
-from sys import argv
-import matplotlib.pyplot as plt
-import scipy as sp
-import scipy.linalg
-import json
-from scipy.stats import linregress
-from os.path import exists
-
-from Grid import Grid
-from Grid import fractal_dimension
-from tictoc import tic, toc
-
-
 def process(job):  
   args = job[0]
   frame = job[1]
 
+  import gc
   import matplotlib.pyplot as plt
   import json
-  import gc
-  from os.path import exists
   import numpy as np
   from my_utils import find_root, lagrange_matrix
   from my_utils import transform_field_elements
@@ -29,7 +14,7 @@ def process(job):
   from Grid import Grid
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum
-  from Grid import fractal_dimension
+#  from Grid import fractal_dimension
   from nek import from_nek
   from tictoc import tic, toc
 
@@ -130,11 +115,6 @@ def process(job):
 
     if not args.series:
       print("Energy Budget (P,K): {:e} {:e}".format(P,K))
-
-  '''
-  foo = data.f.ravel()
-  print("Extra temperature {:f} \n".format(np.sum(np.abs(np.where(foo > 1, foo, 0)))))
-  '''
    
   # Scatter plot of temperature (slice through pseudocolor in visit)
   tic()
@@ -152,13 +132,21 @@ def process(job):
     plt.ylim([0,1])
     plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
 
-  data = 0.
+  data = None; gc.collect()
 
+  toc('plot')
   if not args.series:
     plt.show()
   plt.close('all')
-  toc('plot')
+
   return (str(time), ans)
+#========================================================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+import json
+from os.path import exists
+from tictoc import tic, toc
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
