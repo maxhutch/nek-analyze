@@ -209,8 +209,10 @@ if args.series:
   TMaxs = np.array([d['TMax'] for d in vals])
   plt.figure()
   ax1 = plt.subplot(1,1,1)
-  ax1.plot(times, PeCs, times, TMaxs*2./params['atwood'])
-
+  plt.xlabel('Time (s)')
+  ax1.plot(times, PeCs, label='Cell Peclet')
+  ax1.plot(times, TMaxs*2./params['atwood'], label='max(T)/max(T0)')
+  plt.legend(loc=2)
 
   if args.slice:
     system("rm -f "+args.name+"-slice.mkv")
@@ -234,22 +236,34 @@ if args.series:
 
     plt.figure()
     ax1 = plt.subplot(1,3,1)
+    plt.xlabel('Time (s)')
+    plt.ylabel('h (m)')
     plt.ylim([0., max(hs_visual)])
     ax1.plot(times, hs_cabot, times, hs_visual)
 
     ax2 = plt.subplot(1,3,2)
     plt.ylim([0., max(alpha_visual)])
-    ax2.plot(times, alpha_cabot,times, alpha_visual)
+    ax2.plot(times, alpha_cabot, label='Cabot')
+    ax2.plot(times, alpha_visual, label='Visual')
+    plt.legend(loc=2)
+    plt.xlabel('Time (s)')
+    plt.ylabel('alpha')
 
     Xs = [d['Xi'] for d in vals]
     ax3 = plt.subplot(1,3,3)
     plt.ylim([0.,1.])
     ax3.plot(times, Xs)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Xi')
 
     plt.figure()
     Ps = [d['P'] for d in vals]
     Ks = [d['K'] for d in vals]
     ax1 = plt.subplot(1,1,1)
-    ax1.plot(times, np.divide(Ps, np.square(hs_cabot)), times, np.divide(Ks, np.square(hs_cabot)))
+    ax1.plot(times, np.divide(Ps, np.square(hs_cabot)), label='Potential')
+    ax1.plot(times, np.divide(Ks, np.square(hs_cabot)), label='Kinetic')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Energy / h^2')
+    plt.legend(loc=2)
     plt.show()
 
