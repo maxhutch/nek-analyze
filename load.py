@@ -20,6 +20,7 @@ def process(job):
 #  from Grid import fractal_dimension
   from nek import from_nek
   from tictoc import tic, toc
+#  from memory import resident
 
   ans = {}
   # Load params
@@ -56,7 +57,6 @@ def process(job):
     trans = lagrange_matrix(gll,cart)
     if args.verbose:
       print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
-
   pos_trans = transform_position_elements(pos, trans, cart)
   pos = None; gc.collect()
   t_trans = transform_field_elements(t, trans, cart)
@@ -80,7 +80,17 @@ def process(job):
 
   # switch from list of elements to grid
   tic()
-  data = Grid(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
+  data = Grid(pos_trans)
+  data.add(pos_trans, f_elm = t_trans)
+  t_trans = None; gc.collect()
+  data.add(pos_trans, ux_elm = ux_trans)
+  ux_trans = None; gc.collect()
+  data.add(pos_trans, uy_elm = uy_trans)
+  uy_trans = None; gc.collect()
+  data.add(pos_trans, uz_elm = uz_trans)
+  uz_trans = None; gc.collect()
+  data.add_pos(pos_trans)
+  pos_trans = None; gc.collect() 
   toc('to_grid')
 
   #print(fractal_dimension(data))
@@ -88,7 +98,7 @@ def process(job):
   # Renorm
   tic()
   tmp = np.amax(np.square(data.f))
-  ans['TMax'] = np.sqrt(tmp)
+  ans['TMax'] = float(np.sqrt(tmp))
   Tt_low = -0.0005; Tt_high = 0.0005
   data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
   data.f = np.maximum(data.f, 0.)
@@ -228,6 +238,7 @@ for i, res in enumerate(stuff):
   else:
     results[res[0]] = res[1]
   with open(fname, 'w') as f:
+    print(results)
     json.dump(results,f)
   run_time = time.time() - start_time
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, i/run_time)) 

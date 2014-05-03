@@ -32,7 +32,7 @@ def find_root(x, y, y0 = .5, desired_resolution = None):
 """ Build Lagrange interpolation matrix """
 def lagrange_matrix(A,B):
   import numpy as np
-  M = np.zeros((B.size,A.size), order='F')
+  M = np.zeros((B.size,A.size), order='F', dtype=np.float32)
   for i in range(A.size):
     for j in range(B.size):
       M[j,i] =  1.
@@ -45,6 +45,7 @@ def lagrange_matrix(A,B):
 def transform_field_elements(f, trans, cart):
   from tictoc import tic, toc
   import numpy as np
+  import gc
   ninterp = trans.shape[0]
   norder = trans.shape[1]
   nelm = f.shape[1]
@@ -66,6 +67,10 @@ def transform_field_elements(f, trans, cart):
   f_p =     np.reshape(np.transpose(f_tmp2, (1,0,2,3)), (norder, ninterp**2*nelm), order='F')
   f_trans = np.reshape(np.transpose(np.reshape(trans.dot(f_p), (ninterp, ninterp, ninterp, nelm), order='F'), (1,0,2,3)), (ninterp**3, nelm),        order='F')
   toc('trans_y')
+
+  f_p = None; f_tmp2 = None; f_tmp = None
+  gc.collect()
+
   return f_trans
 
 def transform_position_elements(p, trans, cart):
@@ -77,11 +82,11 @@ def transform_position_elements(p, trans, cart):
 
   # Transform positions to uniform grid
   tic()
-  pos_tmp = np.zeros((ninterp, ninterp, ninterp), order='F')
-  pos_trans = np.zeros((ninterp**3, nelm, 3), order='F')
-  block_x = np.zeros((ninterp,ninterp,ninterp), order='F')
-  block_y = np.zeros((ninterp,ninterp,ninterp), order='F')
-  block_z = np.zeros((ninterp,ninterp,ninterp), order='F')
+  pos_tmp = np.zeros((ninterp, ninterp, ninterp), order='F', dtype=np.float32)
+  pos_trans = np.zeros((ninterp**3, nelm, 3),     order='F', dtype=np.float32)
+  block_x = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float32)
+  block_y = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float32)
+  block_z = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float32)
   for j in range(ninterp):
     block_x[j,:,:] = cart[j]
     block_y[:,j,:] = cart[j]
