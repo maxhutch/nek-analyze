@@ -3,7 +3,7 @@ def find_root(x, y, y0 = .5, desired_resolution = None):
   from scipy import interpolate
   import numpy as np
   if desired_resolution == None:
-    desired_resolution = abs(x[1] - x[0])/8.
+    desired_resolution = abs(x[1] - x[0])/64.
   i_low = 0
   i_high = x.shape[0]
   failsafe = 0

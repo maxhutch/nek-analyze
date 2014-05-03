@@ -1,12 +1,13 @@
-#!/home/maxhutch/tukpy/bin/python
+#!/usr/bin/python3
 
 def process(job):  
   args = job[0]
   frame = job[1]
 
   import gc
-  import matplotlib
-  matplotlib.use('Agg')
+  if not args.display:
+    import matplotlib
+    matplotlib.use('Agg')
   import matplotlib.pyplot as plt
   import json
   import numpy as np
@@ -96,12 +97,25 @@ def process(job):
 
   center = data.shape[1]/2
   if not args.contour:
-    cont = None
+    data.cont = None
   else:
-    cont = np.zeros((data.shape[0]))
+    data.cont = np.zeros((data.shape[0], data.shape[1]))
     tic()
     for i in range(data.shape[0]):
-     cont[i] = find_root(data.x[i,center,:,2], data.f[i,center,:])
+      for j in range(data.shape[1]):
+        print(i,j)
+        data.cont[i,j] = find_root(data.x[i,j,:,2], data.f[i,j,:], desired_resolution = 1.e-15)
+    if frame == 1:
+      modes_x = np.fft.fftfreq(data.shape[0], data.x[1,0,0,0] - data.x[0,0,0,0]) 
+      modes_y = np.fft.rfftfreq(data.shape[1], data.x[0,1,0,1] - data.x[0,0,0,1]) 
+      modes = np.zeros((modes_x.size, modes_y.size))
+      for i in range(modes_x.size):
+        for j in range(modes_y.size):
+          modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
+      np.save("{:s}-cont{:d}".format(args.name, frame), data.cont)
+      np.save("{:s}-modes".format(args.name), modes)
+    if frame == 2:
+      np.save("{:s}-cont{:d}".format(args.name, 2), data.cont)
     toc('contour')
 
   if args.mixing_zone:
@@ -131,7 +145,10 @@ def process(job):
     plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
 
   if args.Fourier:
-    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), slices = [.5])
+    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
+                  slices = [.5],
+                  contour = args.contour
+                 )
   
   if args.mixing_cdf:
     plt.figure()
@@ -152,9 +169,6 @@ def process(job):
 #========================================================================================
 
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import json
 from os.path import exists
 from tictoc import tic, toc
@@ -177,6 +191,12 @@ if args.frame_end == -1:
   args.frame_end = args.frame
 args.series = (args.frame != args.frame_end)
 
+if not args.display:
+  import matplotlib
+  matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+
 """ Load the data """
 from toolz.curried import map
 
@@ -188,8 +208,8 @@ params['g'] = 9.8
 jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
 if len(jobs) > 2:
   from IPython.parallel import Client
-  p = Client(profile='default')[:]
-  pmap = p.map_sync
+  p = Client(profile='default')
+  pmap = p.load_balanced_view().map_sync
   stuff = pmap(process, jobs)
 else:
   stuff = map(process, jobs)
@@ -199,7 +219,7 @@ for job in stuff:
 
 from os import system
 if args.series:
-  fname = './{:s}-results.dat'.format(args.name)
+  fname = '{:s}-results.dat'.format(args.name)
   results = {}
   if exists(fname):
     with open(fname, 'r') as f:
@@ -281,6 +301,22 @@ if args.series:
     plt.legend(loc=2)
     plt.savefig("{:s}-energy.png".format(args.name))
 
+if  args.contour:
+    cont1 = np.load("{:s}-cont{:d}.npy".format(args.name, 1))
+    cont2 = np.load("{:s}-cont{:d}.npy".format(args.name, 2))
+    modes = np.load("{:s}-modes.npy".format(args.name))
+    kont1 = np.fft.rfft2(cont1)/cont1.size
+    kont2 = np.fft.rfft2(cont2)/cont1.size
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.plot(modes.ravel(), np.abs(kont1).ravel(), 'o')
+    ax1.plot(modes.ravel(), np.abs(kont2).ravel(), 'o')
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.plot(modes.ravel(), np.log(np.divide(np.abs(kont2), np.abs(kont1))).ravel()/0.01, 'bo') 
+#    plt.xscale('log')
+#    plt.yscale('log')
+
 if args.display:
   plt.show()
-
+    

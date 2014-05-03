@@ -134,7 +134,7 @@ def plot_slice(grid, fname = None):
   if fname != None:
     plt.savefig(fname)
 
-def plot_spectrum(grid, fname = None, slices = None):
+def plot_spectrum(grid, fname = None, slices = None, contour = False):
   import numpy as np 
   import matplotlib.pyplot as plt
   if slices == None:
@@ -194,6 +194,16 @@ def plot_spectrum(grid, fname = None, slices = None):
 
   if fname != None:
     plt.savefig(fname)
+
+  if contour:
+    plt.figure(figsize=(12,12))
+    ax1 = plt.subplot(1,1,1)
+    plt.title('Interface Spectrum')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Mode Number')
+    spectrum = np.fft.rfft2(grid.cont[:,:]) / (grid.shape[0]*grid.shape[1])
+    ax1.plot(modes.ravel(), spectrum.ravel(), '+', label='I')
 
 def mixing_zone(grid, thresh = .01):
   import numpy as np
