@@ -1,10 +1,12 @@
-#!/usr/bin/python3
+#!/home/maxhutch/tukpy/bin/python
 
 def process(job):  
   args = job[0]
   frame = job[1]
 
   import gc
+  import matplotlib
+  matplotlib.use('Agg')
   import matplotlib.pyplot as plt
   import json
   import numpy as np
@@ -83,11 +85,14 @@ def process(job):
   #print(fractal_dimension(data))
 
   # Renorm
-  ans['TMax'] = np.max(np.abs(data.f))
+  tic()
+  tmp = np.amax(np.square(data.f))
+  ans['TMax'] = np.sqrt(tmp)
   Tt_low = -0.0005; Tt_high = 0.0005
   data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
   data.f = np.maximum(data.f, 0.)
   data.f = np.minimum(data.f, 1.)
+  toc('renorm')
 
   center = data.shape[1]/2
   if not args.contour:
@@ -100,18 +105,22 @@ def process(job):
     toc('contour')
 
   if args.mixing_zone:
+    tic()
     h_cabot, h_visual, X = mixing_zone(data)
     ans['h_cabot'] = h_cabot
     ans['h_visual'] = h_visual
     ans['Xi'] = X
+    toc('mixing_zone')
 
     if not args.series:
       print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(h_cabot,h_visual,X))
 
   if True:
+    tic()
     P, K = energy_budget(data)
     ans['P'] = P
     ans['K'] = K
+    toc('energy_budget')
 
     if not args.series:
       print("Energy Budget (P,K): {:e} {:e}".format(P,K))
@@ -135,7 +144,7 @@ def process(job):
   data = None; gc.collect()
 
   toc('plot')
-  if not args.series:
+  if not args.series and args.display:
     plt.show()
   plt.close('all')
 
@@ -143,6 +152,8 @@ def process(job):
 #========================================================================================
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import json
 from os.path import exists
@@ -159,6 +170,7 @@ parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, d
 parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
 parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
 parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
+parser.add_argument("-d", "--display", help="Display plots with X", action="store_true", default=False)
 parser.add_argument("-v", "--verbose", help="Should I be really verbose, that is wordy?", action="store_true", default=False)
 args = parser.parse_args()
 if args.frame_end == -1:
@@ -167,17 +179,17 @@ args.series = (args.frame != args.frame_end)
 
 """ Load the data """
 from toolz.curried import map
-from IPython.parallel import Client
 
 # Load params
 with open("{:s}.json".format(args.name), 'r') as f:
   params = json.load(f)
 params['g'] = 9.8
 
-p = Client(profile='default')[:]
-pmap = p.map_sync
 jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
 if len(jobs) > 2:
+  from IPython.parallel import Client
+  p = Client(profile='default')[:]
+  pmap = p.map_sync
   stuff = pmap(process, jobs)
 else:
   stuff = map(process, jobs)
@@ -213,6 +225,7 @@ if args.series:
   ax1.plot(times, PeCs, label='Cell Peclet')
   ax1.plot(times, TMaxs*2./params['atwood'], label='max(T)/max(T0)')
   plt.legend(loc=2)
+  plt.savefig("{:s}-stability.png".format(args.name))
 
   if args.slice:
     system("rm -f "+args.name+"-slice.mkv")
@@ -255,6 +268,7 @@ if args.series:
     ax3.plot(times, Xs)
     plt.xlabel('Time (s)')
     plt.ylabel('Xi')
+    plt.savefig("{:s}-h.png".format(args.name))
 
     plt.figure()
     Ps = [d['P'] for d in vals]
@@ -265,5 +279,8 @@ if args.series:
     plt.xlabel('Time (s)')
     plt.ylabel('Energy / h^2')
     plt.legend(loc=2)
-    plt.show()
+    plt.savefig("{:s}-energy.png".format(args.name))
+
+if args.display:
+  plt.show()
 
