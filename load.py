@@ -5,7 +5,7 @@ def process(job):
   frame = job[1]
 
   import gc
-  if not args.display:
+  if args.series or not args.display:
     import matplotlib
     matplotlib.use('Agg')
   import matplotlib.pyplot as plt
@@ -172,6 +172,7 @@ import numpy as np
 import json
 from os.path import exists
 from tictoc import tic, toc
+import time
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -206,33 +207,33 @@ with open("{:s}.json".format(args.name), 'r') as f:
 params['g'] = 9.8
 
 jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
+start_time = time.time()
 if len(jobs) > 2:
   from IPython.parallel import Client
   p = Client(profile='default')
-  pmap = p.load_balanced_view().map_sync
+  pmap = p.load_balanced_view().map_async
   stuff = pmap(process, jobs)
 else:
   stuff = map(process, jobs)
 
-for job in stuff:
-  continue
+fname = '{:s}-results.dat'.format(args.name)
+results = {}
+if exists(fname):
+  with open(fname, 'r') as f:
+    results = json.load(f)
 
-from os import system
-if args.series:
-  fname = '{:s}-results.dat'.format(args.name)
-  results = {}
-  if exists(fname):
-    with open(fname, 'r') as f:
-      results = json.load(f)
- 
-  for res in stuff:
-    if res[0] in results:
-      results[res[0]] = dict(list(results[res[0]].items()) + list(res[1].items()))
-    else:
-      results[res[0]] = res[1]
+for i, res in enumerate(stuff):
+  if res[0] in results:
+    results[res[0]] = dict(list(results[res[0]].items()) + list(res[1].items()))
+  else:
+    results[res[0]] = res[1]
   with open(fname, 'w') as f:
     json.dump(results,f)
-  
+  run_time = time.time() - start_time
+  print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, i/run_time)) 
+
+from os import system
+if args.series: 
   results_with_times = sorted([[float(elm[0]), elm[1]] for elm in results.items()])
   times, vals = zip(*results_with_times)
 
