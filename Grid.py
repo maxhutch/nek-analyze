@@ -19,6 +19,8 @@ class Grid:
     self.f_xy = np.zeros(self.shape[2])
     self.f_m  = 0.
     self.v2   = 0.
+    self.nbins = 1000
+    self.pdf  = np.zeros(self.nbins)
 
   def add(self, pos_elm, f_elm = None, ux_elm = None, uy_elm = None, uz_elm = None):
     import numpy as np
@@ -29,6 +31,8 @@ class Grid:
       if self.f == None:
         self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       self.f_m += np.sum(np.where(f_elm[:,:] < .5, f_elm[:,:]*2, 2*(1.-f_elm[:,:])))
+      pdf_partial, foo = np.histogram(f_elm.flatten(), bins=self.nbins, range=(-0.1, 1.1))
+      self.pdf += pdf_partial
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         f_tmp = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
@@ -116,7 +120,6 @@ def fractal_dimension(grid, nsample = 25, base = 1.2):
   return ans[0]
 
 def plot_slice(grid, fname = None):
-  import numpy as np 
   import matplotlib.pyplot as plt
   center = int(grid.shape[1]/2)
 
@@ -129,6 +132,20 @@ def plot_slice(grid, fname = None):
   plt.xlabel('X')
   plt.ylabel('Z')
   if fname != None:
+    plt.savefig(fname)
+
+def plot_dist(grid, fname = None):
+  import matplotlib.pyplot as plt
+  import numpy as np
+  edges = np.linspace(-0.1, 1.1, grid.nbins+1)
+  grid.pdf = grid.pdf / np.sum(grid.pdf)
+  cdf = np.cumsum(grid.pdf)
+  plt.figure()
+  ax1 = plt.subplot(1,1,1)
+  ax1.bar(edges[:-1], cdf, width=(edges[1]-edges[0]))
+  plt.xlim([-.1,1.1])
+  plt.ylim([0,1])
+  if fname != None: 
     plt.savefig(fname)
 
 def plot_spectrum(grid, fname = None, slices = None, contour = False):

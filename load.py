@@ -17,7 +17,7 @@ def process(job):
   from my_utils import TransformPositionElements
   from Grid import Grid
   from Grid import mixing_zone, energy_budget
-  from Grid import plot_slice, plot_spectrum
+  from Grid import plot_slice, plot_spectrum, plot_dist
 #  from Grid import fractal_dimension
   from nek import NekFile
   from tictoc import tic, toc
@@ -170,16 +170,12 @@ def process(job):
                   contour = args.contour
                  )
   
+  data.f = None; data.ux = None; data.uy = None; data.uz = None
   if args.mixing_cdf:
-    plt.figure()
-    ax1 = plt.subplot(1,1,1)
-    ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
-    plt.xlim([-.1,1.1])
-    plt.ylim([0,1])
-    plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
+    plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
+
   toc('plot')
 
-  data.f = None; data.ux = None; data.uy = None; data.uz = None
   if args.mixing_zone:
     tic()
     h_cabot, h_visual, X = mixing_zone(data)
