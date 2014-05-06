@@ -19,7 +19,7 @@ def process(job):
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum
 #  from Grid import fractal_dimension
-  from nek import from_nek
+  from nek import NekFile
   from tictoc import tic, toc
   from threading import Thread
 #  from memory import resident
@@ -32,8 +32,11 @@ def process(job):
   # Load file
   tic()
   fname = "{:s}0.f{:05d}".format(args.name, frame)
-  pos, vel, t, time, norder = from_nek(fname)
-  nelm = t.shape[1]
+  input_file = NekFile(fname)
+  time = input_file.time
+  norder = input_file.norder
+  nelm, pos, vel, t = input_file.get_elem(input_file.nelm)
+  input_file.close()
   toc('read')
 
   # Learn about the mesh 

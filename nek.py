@@ -1,39 +1,48 @@
-def from_nek(fname):
-  import struct
-  import numpy as np
-  with open(fname,'rb') as f:
-    #''' The header is 132 bytes long '''
-    header = str(f.read(132))
+
+class NekFile():
+  def __init__(self, fname):
+    import struct
+    self.x_file = open(fname, 'rb')
+    header = str(self.x_file.read(132))
     htoks = header.split()
-    nelm = int(htoks[5])
-    norder = int(htoks[2])
-    time = float(htoks[7])
-    print("Read {:d} elements of order {:d} at time {:f}".format(nelm, norder, time))
+    self.nelm = int(htoks[5])
+    self.norder = int(htoks[2])
+    self.time = float(htoks[7])
+    print("Read {:d} elements of order {:d} at time {:f}".format(self.nelm, self.norder, self.time))
     #''' Assume isotropic elements '''
-    ntot = nelm * norder * norder * norder
+    self.ntot = self.nelm * self.norder**3
     #''' Check the test float '''
-    test = struct.unpack('f', f.read(4))
+    test = struct.unpack('f', self.x_file.read(4))
     byteswap = abs(test[0] - 6.543210029) > 0.00001
     if byteswap:
       print("  * swapping bytes")
-      ty = '>f4'
+      self.ty = '>f4'
     else:
-      ty = 'f4'
-    #''' 4 byptes per element for an unused map '''
-    element_map = f.read(nelm*4)
-    #''' 4*3 bytes per basis function for position '''
-    xyz  = np.fromfile(f, dtype=ty, count=ntot*3)
-    #''' 4*3 bytes per basis function for velocity '''
-    u    = np.fromfile(f, dtype=ty, count=norder*norder*norder*nelm*3)
-    #''' 4 bytes per basis function for pressure '''
-    p    = np.fromfile(f, dtype=ty, count=norder*norder*norder*nelm)
-    #''' 4 bytes per basis function for temperature '''
-    t_in = np.fromfile(f, dtype=ty, count=norder*norder*norder*nelm)
+      self.ty = 'f4'
+    self.current_elm = 0
+    self.u_file = open(fname, 'rb')
+    self.t_file = open(fname, 'rb')
+    self.x_file.seek(136+self.nelm*4,               0) 
+    self.u_file.seek(136+self.nelm*4+3*self.ntot*4, 0) 
+    self.t_file.seek(136+self.nelm*4+7*self.ntot*4, 0) 
 
-  #''' Reshape vector data '''
-  pos = np.transpose(np.reshape(xyz, (norder*norder*norder,3,nelm), order='F'), (0,2,1))
-  vel = np.transpose(np.reshape(u, (norder*norder*norder,3,nelm), order='F'), (0,2,1))
-  #''' Reshape scaler data '''
-  t = np.reshape(t_in, (norder*norder*norder,nelm), order='F')
-  return pos, vel, t, time, norder
+  def close(self):
+    self.x_file.close()
+    self.u_file.close()
+    self.t_file.close()
+    return
+
+  def get_elem(self, num):
+    import numpy as np
+    num = min(num, self.nelm - self.current_elm)
+    if num < 0:
+      return 0, None, None, None
+    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = num*(self.norder**3)*3) 
+    u_raw = np.fromfile(self.u_file, dtype=self.ty, count = num*(self.norder**3)*3) 
+    t_raw = np.fromfile(self.t_file, dtype=self.ty, count = num*(self.norder**3)) 
+    
+    x = np.transpose(np.reshape(x_raw, (self.norder**3,3,num), order='F'), (0,2,1))
+    u = np.transpose(np.reshape(u_raw, (self.norder**3,3,num), order='F'), (0,2,1))
+    t =              np.reshape(t_raw, (self.norder**3,  num), order='F')
+    return num, x, u, t
 
