@@ -35,6 +35,7 @@ class NekFile():
   def get_elem(self, num):
     import numpy as np
     num = min(num, self.nelm - self.current_elm)
+    print("Returning {:d} elements".format(num))
     if num < 0:
       return 0, None, None, None
     x_raw = np.fromfile(self.x_file, dtype=self.ty, count = num*(self.norder**3)*3) 
@@ -44,5 +45,7 @@ class NekFile():
     x = np.transpose(np.reshape(x_raw, (self.norder**3,3,num), order='F'), (0,2,1))
     u = np.transpose(np.reshape(u_raw, (self.norder**3,3,num), order='F'), (0,2,1))
     t =              np.reshape(t_raw, (self.norder**3,  num), order='F')
+
+    self.current_elm += num
     return num, x, u, t
 

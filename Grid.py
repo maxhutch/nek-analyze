@@ -8,19 +8,13 @@ class Grid:
     return
 
   """ Unpack list of elements into single grid """
-  def __init__(self, pos_elm):
-    from scipy.special import cbrt
-    import numpy as np
-
-    self.dx = pos_elm[1,0,0] - pos_elm[0,0,0]
-    self.order = int(cbrt(pos_elm.shape[0]))
-    self.origin = np.array([np.min(pos_elm[:,:,0]),
-                            np.min(pos_elm[:,:,1]),
-                            np.min(pos_elm[:,:,2])])
-    self.corner = np.array([np.max(pos_elm[:,:,0]),
-                            np.max(pos_elm[:,:,1]),
-                            np.max(pos_elm[:,:,2])])
-    self.shape = np.array((self.corner - self.origin)/self.dx + .5, dtype=int)+1
+  def __init__(self, order, origin, corner, shape):
+    self.order = order 
+    self.origin = origin
+    self.corner = corner 
+    self.shape = shape 
+    self.dx = (self.corner[0] - self.origin[0])/(self.shape[0])
+    self.f, self.ux, self.uy, self.uz = None, None, None, None
 
   def add(self, pos_elm, f_elm = None, ux_elm = None, uy_elm = None, uz_elm = None):
     import numpy as np
@@ -28,7 +22,8 @@ class Grid:
     from memory import resident
     ''' field grid '''
     if f_elm != None:
-      self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      if self.f == None:
+        self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.f[root[0]:root[0]+self.order,
@@ -37,7 +32,8 @@ class Grid:
 
     ''' field grid '''
     if ux_elm != None:
-      self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      if self.ux == None:
+        self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.ux[root[0]:root[0]+self.order,
@@ -46,7 +42,8 @@ class Grid:
 
     ''' field grid '''
     if uy_elm != None:
-      self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      if self.uy == None:
+        self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.uy[root[0]:root[0]+self.order,
@@ -55,14 +52,15 @@ class Grid:
 
     ''' field grid '''
     if uz_elm != None:
-      self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      if self.uz == None:
+        self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.uz[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
                 root[2]:root[2]+self.order] = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
 
-  def add_pos(self, pos_elm):
+  def add_pos(self):
     import numpy as np
     ''' position grid '''
     self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F', dtype=np.float32)

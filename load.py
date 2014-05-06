@@ -29,108 +29,112 @@ def process(job):
   with open("{:s}.json".format(args.name), 'r') as f:
     params = json.load(f)
 
+  # inits
+  ans['PeCell'] = 0.
+  ans['ReCell'] = 0.
+  ans['TAbs']   = 0.
+  ans['TMax']   = 0.
+  ans['TMin']   = 0.
+  ans['UAbs']   = 0.
+
   # Load file
-  tic()
   fname = "{:s}0.f{:05d}".format(args.name, frame)
   input_file = NekFile(fname)
+  data = Grid(args.ninterp * params['order'], params['root_mesh'], params['extent_mesh'], np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']))
   time = input_file.time
   norder = input_file.norder
-  nelm, pos, vel, t = input_file.get_elem(input_file.nelm)
+  block = int(32768/4) #input_file.nelm
+  while True:
+    tic()
+    nelm, pos, vel, t = input_file.get_elem(block)
+    toc('read')
+    if nelm < 1:
+      break
+
+    # Learn about the mesh 
+    if True or frame == args.frame:
+      origin = np.array(params['root_mesh'])
+      corner = np.array(params['extent_mesh'])
+      extent = corner-origin
+      size = np.array(params['shape_mesh'], dtype=int)
+      if args.verbose:
+        print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
+              extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
+
+      # setup the transformation
+      ninterp = int(args.ninterp*norder)
+      gll  = pos[0:norder,0,0] - pos[0,0,0]
+      dx_max = np.max(gll[1:] - gll[0:-1])
+      cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
+      trans = lagrange_matrix(gll,cart)
+      if args.verbose:
+        print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
+
+    x_thread = TransformPositionElements(pos, trans, cart)
+    x_thread.start()
+    x_thread.join()
+    pos_trans = x_thread.p_trans
+    del x_thread; pos = None; gc.collect()
+
+    t_thread = TransformFieldElements(t, trans, cart)
+    t_thread.start()
+    t_thread.join()
+    t_trans = t_thread.f_trans 
+    del t_thread; t = None; gc.collect()
+
+    uz_thread = TransformFieldElements(vel[:,:,2], trans, cart)
+    uz_thread.start()
+    uz_thread.join()
+    uz_trans = uz_thread.f_trans 
+    del uz_thread; vel = np.delete(vel, 2, 2); gc.collect()
+
+    uy_thread = TransformFieldElements(vel[:,:,1], trans, cart)
+    uy_thread.start()
+    uy_thread.join()
+    uy_trans = uy_thread.f_trans 
+    del uy_thread; vel = np.delete(vel, 1, 2); gc.collect()
+
+    ux_thread = TransformFieldElements(vel[:,:,0], trans, cart)
+    ux_thread.start()
+    ux_thread.join()
+    ux_trans = ux_thread.f_trans 
+    del ux_thread; vel = None; gc.collect()
+
+    # Print some stuff 
+    max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
+    ans['TMax']   = float(max(ans['TMax'], np.amax(t_trans)))
+    ans['TMin']   = float(min(ans['TMin'], np.amin(t_trans)))
+    ans['UAbs']   = float(max(ans['UAbs'], max_speed))
+
+    # switch from list of elements to grid
+    data.add(pos_trans, f_elm = t_trans)
+    t_trans = None; gc.collect()
+    data.add(pos_trans, ux_elm = ux_trans)
+    ux_trans = None; gc.collect()
+    data.add(pos_trans, uy_elm = uy_trans)
+    uy_trans = None; gc.collect()
+    data.add(pos_trans, uz_elm = uz_trans)
+    uz_trans = None; gc.collect()
+    pos_trans = None; gc.collect() 
+
   input_file.close()
-  toc('read')
-
-  # Learn about the mesh 
-  if True or frame == args.frame:
-    origin = np.array([np.min(pos[:,:,0]),
-                       np.min(pos[:,:,1]), 
-                       np.min(pos[:,:,2])])
-    corner = np.array([np.max(pos[:,:,0]), 
-                       np.max(pos[:,:,1]), 
-                       np.max(pos[:,:,2])])
-    extent = corner-origin
-    elm_displace = max(pos[0,1,0] - pos[0,0,0], pos[0,1,1] - pos[0,0,1], pos[0,1,2] - pos[0,0,2])
-    size = np.array(extent/elm_displace, dtype=int)
-    if args.verbose:
-      print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
-            extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
-
-    # setup the transformation
-    ninterp = int(args.ninterp*norder)
-    gll  = pos[0:norder,0,0] - pos[0,0,0]
-    dx_max = np.max(gll[1:] - gll[0:-1])
-    cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
-    trans = lagrange_matrix(gll,cart)
-    if args.verbose:
-      print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
-
-  x_thread = TransformPositionElements(pos, trans, cart)
-  x_thread.start()
-
-  t_thread = TransformFieldElements(t, trans, cart)
-  t_thread.start()
-  uz_thread = TransformFieldElements(vel[:,:,2], trans, cart)
-  uz_thread.start()
-  uy_thread = TransformFieldElements(vel[:,:,1], trans, cart)
-  uy_thread.start()
-  ux_thread = TransformFieldElements(vel[:,:,0], trans, cart)
-  ux_thread.start()
-
-  x_thread.join()
-  pos_trans = x_thread.p_trans
-  del x_thread; pos = None; gc.collect()
-
-  t_thread.join()
-  t_trans = t_thread.f_trans 
-  del t_thread; t = None; gc.collect()
-
-  uz_thread.join()
-  uz_trans = uz_thread.f_trans 
-  del uz_thread; vel = np.delete(vel, 2, 2); gc.collect()
-
-  uy_thread.join()
-  uy_trans = uy_thread.f_trans 
-  del uy_thread; vel = np.delete(vel, 1, 2); gc.collect()
-
-  ux_thread.join()
-  ux_trans = ux_thread.f_trans 
-  del ux_thread; vel = None; gc.collect()
-
-  # Print some stuff 
-  max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
-  ans['PeCell'] = max_speed*dx_max/params['conductivity']
-  ans['ReCell'] = max_speed*dx_max/params['viscosity']
-  if args.verbose:
-    print("Extremal temperatures {:f}, {:f}".format(np.max(t_trans), np.min(t_trans)))
-    print("Extremal u_z          {:f}, {:f}".format(np.max(uz_trans), np.min(uz_trans)))
-    print("Max speed: {:f}".format(max_speed))
-    print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
-
-  # switch from list of elements to grid
-  tic()
-  data = Grid(pos_trans)
-  data.add(pos_trans, f_elm = t_trans)
-  t_trans = None; gc.collect()
-  data.add(pos_trans, ux_elm = ux_trans)
-  ux_trans = None; gc.collect()
-  data.add(pos_trans, uy_elm = uy_trans)
-  uy_trans = None; gc.collect()
-  data.add(pos_trans, uz_elm = uz_trans)
-  uz_trans = None; gc.collect()
-  data.add_pos(pos_trans)
-  pos_trans = None; gc.collect() 
-  toc('to_grid')
-
-  #print(fractal_dimension(data))
+  data.add_pos()
 
   # Renorm
   tic()
-  tmp = np.amax(np.square(data.f))
-  ans['TMax'] = float(np.sqrt(tmp))
   Tt_low = -0.0005; Tt_high = 0.0005
   data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
   data.f = np.maximum(data.f, 0.)
   data.f = np.minimum(data.f, 1.)
   toc('renorm')
+
+  ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
+  ans['PeCell'] = ans['UAbs']*dx_max/params['conductivity']
+  ans['ReCell'] = ans['UAbs']*dx_max/params['viscosity']
+  if args.verbose:
+    print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
+    print("Max speed: {:f}".format(ans['UAbs']))
+    print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
 
   center = data.shape[1]/2
   if not args.contour:
@@ -276,7 +280,7 @@ if args.series:
 
 
   PeCs  = [d['PeCell'] for d in vals]
-  TMaxs = np.array([d['TMax'] for d in vals])
+  TMaxs = np.array([d['TAbs'] for d in vals])
   plt.figure()
   ax1 = plt.subplot(1,1,1)
   plt.xlabel('Time (s)')
