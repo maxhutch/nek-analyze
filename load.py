@@ -18,11 +18,9 @@ def process(job):
   from Grid import Grid
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum, plot_dist
-#  from Grid import fractal_dimension
   from nek import NekFile
   from tictoc import tic, toc
   from threading import Thread
-#  from memory import resident
 
   ans = {}
   # Load params
@@ -43,7 +41,7 @@ def process(job):
   data = Grid(args.ninterp * params['order'], params['root_mesh'], params['extent_mesh'], np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']))
   time = input_file.time
   norder = input_file.norder
-  block = int(32768/16) #input_file.nelm
+  block = 32768 #input_file.nelm
   while True:
     tic()
     nelm, pos, vel, t = input_file.get_elem(block)
@@ -160,17 +158,18 @@ def process(job):
     toc('contour')
 
   # Scatter plot of temperature (slice through pseudocolor in visit)
-  tic()
-  if args.slice:
-    plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
+  data.f = None; data.ux = None; data.uy = None; data.uz = None
 
+  tic()
   if args.Fourier:
     plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
                   slices = [.5],
                   contour = args.contour
                  )
   
-  data.f = None; data.ux = None; data.uy = None; data.uz = None
+  if args.slice:
+    plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
+
   if args.mixing_cdf:
     plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
 

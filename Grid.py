@@ -20,7 +20,12 @@ class Grid:
     self.f_m  = 0.
     self.v2   = 0.
     self.nbins = 1000
-    self.pdf  = np.zeros(self.nbins)
+    self.pdf   = np.zeros(self.nbins)
+    self.yind    = int(self.shape[1]/2. + .5)
+    self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.zind    = int(self.shape[2]/2. + .5)
+    self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
+    self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
 
   def add(self, pos_elm, f_elm = None, ux_elm = None, uy_elm = None, uz_elm = None):
     import numpy as np
@@ -34,12 +39,24 @@ class Grid:
       pdf_partial, foo = np.histogram(f_elm.flatten(), bins=self.nbins, range=(-0.1, 1.1))
       self.pdf += pdf_partial
       for i in range(pos_elm.shape[1]):
-        root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         f_tmp = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+        root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+        off = self.yind - root[1]
+        if off >= 0 and off < self.order:
+          self.yslice[root[0]:root[0]+self.order, 
+                      root[2]:root[2]+self.order] = f_tmp[:,off,:]
+        off = self.zind - root[2]
+        if off >= 0 and off < self.order:
+          self.zslice[root[0]:root[0]+self.order, 
+                      root[1]:root[1]+self.order] = f_tmp[:,:,off]
+
+
         self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
+        '''
         self.f[root[0]:root[0]+self.order,
                root[1]:root[1]+self.order,
                root[2]:root[2]+self.order] = f_tmp
+        '''
 
     ''' field grid '''
     if ux_elm != None:
@@ -47,21 +64,35 @@ class Grid:
         self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       self.v2 += np.sum(np.square(ux_elm))
       for i in range(pos_elm.shape[1]):
+        u_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+        off = self.zind - root[2]
+        if off >= 0 and off < self.order:
+          self.zsliceu[root[0]:root[0]+self.order, 
+                       root[1]:root[1]+self.order, 0] = u_tmp[:,:,off]
+        '''
         self.ux[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
-                root[2]:root[2]+self.order] = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
-
+                root[2]:root[2]+self.order] = u_tmp
+        '''
+ 
     ''' field grid '''
     if uy_elm != None:
       if self.uy == None:
         self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       self.v2 += np.sum(np.square(uy_elm))
       for i in range(pos_elm.shape[1]):
+        u_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+        off = self.zind - root[2]
+        if off >= 0 and off < self.order:
+          self.zsliceu[root[0]:root[0]+self.order, 
+                       root[1]:root[1]+self.order, 1] = u_tmp[:,:,off]
+        '''
         self.uy[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
-                root[2]:root[2]+self.order] = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
+                root[2]:root[2]+self.order] = u_tmp 
+        '''
 
     ''' field grid '''
     if uz_elm != None:
@@ -69,11 +100,18 @@ class Grid:
         self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
       self.v2 += np.sum(np.square(uz_elm))
       for i in range(pos_elm.shape[1]):
+        u_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+        off = self.zind - root[2]
+        if off >= 0 and off < self.order:
+          self.zsliceu[root[0]:root[0]+self.order, 
+                       root[1]:root[1]+self.order, 2] = u_tmp[:,:,off]
+        '''
         self.uz[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
-                root[2]:root[2]+self.order] = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
-
+                root[2]:root[2]+self.order] = u_tmp
+        '''
+ 
   def add_pos(self):
     import numpy as np
     ''' position grid '''
@@ -128,7 +166,7 @@ def plot_slice(grid, fname = None):
   fig = plt.figure(figsize=(image_x,image_y))
   ax1 = plt.subplot(1,1,1)
   plt.title('Y-normal slice')
-  ax1.imshow(grid.f[:,center,:].transpose(), origin = 'lower', interpolation='bicubic')
+  ax1.imshow(grid.yslice.transpose(), origin = 'lower', interpolation='bicubic')
   plt.xlabel('X')
   plt.ylabel('Z')
   if fname != None:
@@ -161,44 +199,49 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
   plt.yscale('log')
   plt.xlabel('Mode Number')
   plt.ylabel('Amplitude')
-  plt.ylim([10**(-20),.25*Atwood*g])
+#  plt.ylim([10**(-20),.25*Atwood*g])
 
-  modes_x = np.fft.fftfreq(grid.shape[0], grid.x[1,0,0,0] - grid.x[0,0,0,0])
-  modes_y = np.fft.rfftfreq(grid.shape[1], grid.x[0,1,0,1] - grid.x[0,0,0,1])
+  modes_x = np.fft.fftfreq( grid.shape[0], grid.dx)
+  modes_y = np.fft.rfftfreq(grid.shape[1], grid.dx)
   modes = np.zeros((modes_x.size, modes_y.size))
   for i in range(modes_x.size):
     for j in range(modes_y.size):
       modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
   plt.xlim([modes_y[1]/1.5, np.max(modes)*1.5])
+
   for zpos in slices:
     z = int(zpos * grid.shape[2])
 
     # compute Taylor microscale
-    spectrum = np.fft.rfft2(grid.f[:,:,z]) / (grid.shape[0]*grid.shape[1])
-    ax1.plot(modes.ravel(), .25 * Atwood * g * np.square(np.abs(spectrum.ravel())), 'o', label='P')
-    if grid.uz != None:
-      tmp = np.average(np.square((grid.uz[:,:,z+1] - grid.uz[:,:,z-1])/(grid.x[0,0,z+1,2] - grid.x[0,0,z-1,2]))) 
-      taylor_z = np.sqrt(np.average(np.square(grid.uz[:,:,z])) / tmp)
-      kolmog_z = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
-      spectrum = np.square(np.abs(np.fft.rfft2(grid.uz[:,:,z]))/ (grid.shape[0]*grid.shape[1]))
-      ax1.plot(modes.ravel(), .5*spectrum.ravel(), 'x', label='K_z')
-      ax1.vlines(1./taylor_z, 1.e-20, 1., label='lambda_z', color='g', linestyles='dashdot')
-      ax1.vlines(1./kolmog_z, 1.e-20, 1., label='eta_z', color='g', linestyles='dotted')
-    if grid.ux != None and grid.uy != None and grid.uz != None:
-      tmp = np.average(np.square((grid.uy[:,2:,z] - grid.uy[:,:-2,z])/(grid.x[0,2,z,1] - grid.x[0,0,z,1]))) 
-      taylor_y = np.sqrt(np.average(np.square(grid.uy[:,1:-1,z])) / tmp)
-      kolmog_y = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
+    spectrum = np.square(np.abs(np.fft.rfft2(grid.zslice[:,:])) / (grid.shape[0]*grid.shape[1]))
+    ax1.plot(modes.ravel(), .25 * Atwood * g * spectrum.ravel(), 'o', label='P')
 
-      tmp = np.average(np.square((grid.ux[2:,:,z] - grid.ux[:-2,:,z])/(grid.x[2,0,z,0] - grid.x[0,0,z,0]))) 
-      taylor_x = np.sqrt(np.average(np.square(grid.uy[1:-1,:,z])) / tmp)
-      kolmog_x = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
+    spectrum = np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,2]))/ (grid.shape[0]*grid.shape[1]))
+    ax1.plot(modes.ravel(), .5*spectrum.ravel(), 'x', label='K_z')
+    spectrum += np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,0])) / (grid.shape[0]*grid.shape[1]))
+    spectrum += np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,1])) / (grid.shape[0]*grid.shape[1]))
+    ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
 
-      spectrum += np.square(np.abs(np.fft.rfft2(grid.ux[:,:,z])) / (grid.shape[0]*grid.shape[1]))
-      spectrum += np.square(np.abs(np.fft.rfft2(grid.uy[:,:,z])) / (grid.shape[0]*grid.shape[1]))
-      ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
-      ax1.vlines(2./(taylor_x+taylor_y), 1.e-20, 1., label='lambda_xy', color='y', linestyles='dashdot')
-      ax1.vlines(2./(kolmog_z+kolmog_y), 1.e-20, 1., label='eta_xy', color='y', linestyles='dotted')
+    '''
+    tmp = np.average(np.square((grid.uz[:,:,z+1] - grid.uz[:,:,z-1])/(grid.x[0,0,z+1,2] - grid.x[0,0,z-1,2]))) 
+    taylor_z = np.sqrt(np.average(np.square(grid.uz[:,:,z])) / tmp)
+    kolmog_z = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
+    ax1.vlines(1./taylor_z, 1.e-20, 1., label='lambda_z', color='g', linestyles='dashdot')
+    ax1.vlines(1./kolmog_z, 1.e-20, 1., label='eta_z', color='g', linestyles='dotted')
+    tmp = np.average(np.square((grid.uy[:,2:,z] - grid.uy[:,:-2,z])/(grid.x[0,2,z,1] - grid.x[0,0,z,1]))) 
+    taylor_y = np.sqrt(np.average(np.square(grid.uy[:,1:-1,z])) / tmp)
+    kolmog_y = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
 
+    tmp = np.average(np.square((grid.ux[2:,:,z] - grid.ux[:-2,:,z])/(grid.x[2,0,z,0] - grid.x[0,0,z,0]))) 
+    taylor_x = np.sqrt(np.average(np.square(grid.uy[1:-1,:,z])) / tmp)
+    kolmog_x = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
+
+    spectrum += np.square(np.abs(np.fft.rfft2(grid.ux[:,:,z])) / (grid.shape[0]*grid.shape[1]))
+    spectrum += np.square(np.abs(np.fft.rfft2(grid.uy[:,:,z])) / (grid.shape[0]*grid.shape[1]))
+    ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
+    ax1.vlines(2./(taylor_x+taylor_y), 1.e-20, 1., label='lambda_xy', color='y', linestyles='dashdot')
+    ax1.vlines(2./(kolmog_z+kolmog_y), 1.e-20, 1., label='eta_xy', color='y', linestyles='dotted')
+    '''
   plt.legend(loc=3)
   
   xs = np.sort(modes.ravel())
@@ -209,6 +252,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
   if fname != None:
     plt.savefig(fname)
 
+  '''
   if contour:
     plt.figure(figsize=(12,12))
     ax1 = plt.subplot(1,1,1)
@@ -218,6 +262,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
     plt.xlabel('Mode Number')
     spectrum = np.fft.rfft2(grid.cont[:,:]) / (grid.shape[0]*grid.shape[1])
     ax1.plot(modes.ravel(), spectrum.ravel(), '+', label='I')
+  '''
 
 def mixing_zone(grid, thresh = .01):
   import numpy as np
