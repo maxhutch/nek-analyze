@@ -9,12 +9,16 @@ class Grid:
 
   """ Unpack list of elements into single grid """
   def __init__(self, order, origin, corner, shape):
+    import numpy as np
     self.order = order 
     self.origin = origin
     self.corner = corner 
     self.shape = shape 
     self.dx = (self.corner[0] - self.origin[0])/(self.shape[0])
     self.f, self.ux, self.uy, self.uz = None, None, None, None
+    self.f_xy = np.zeros(self.shape[2])
+    self.f_m  = 0.
+    self.v2   = 0.
 
   def add(self, pos_elm, f_elm = None, ux_elm = None, uy_elm = None, uz_elm = None):
     import numpy as np
@@ -24,16 +28,20 @@ class Grid:
     if f_elm != None:
       if self.f == None:
         self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.f_m += np.sum(np.where(f_elm[:,:] < .5, f_elm[:,:]*2, 2*(1.-f_elm[:,:])))
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+        f_tmp = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+        self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
         self.f[root[0]:root[0]+self.order,
                root[1]:root[1]+self.order,
-               root[2]:root[2]+self.order] = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+               root[2]:root[2]+self.order] = f_tmp
 
     ''' field grid '''
     if ux_elm != None:
       if self.ux == None:
         self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.v2 += np.sum(np.square(ux_elm))
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.ux[root[0]:root[0]+self.order,
@@ -44,6 +52,7 @@ class Grid:
     if uy_elm != None:
       if self.uy == None:
         self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.v2 += np.sum(np.square(uy_elm))
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.uy[root[0]:root[0]+self.order,
@@ -54,6 +63,7 @@ class Grid:
     if uz_elm != None:
       if self.uz == None:
         self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.v2 += np.sum(np.square(uz_elm))
       for i in range(pos_elm.shape[1]):
         root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
         self.uz[root[0]:root[0]+self.order,
@@ -196,11 +206,11 @@ def mixing_zone(grid, thresh = .01):
   import numpy as np
   from my_utils import find_root
 
-  L = np.max(grid.x[1,1,:,2]) - np.min(grid.x[1,1,:,2])
+  L = np.max(grid.corner[2]) - np.min(grid.origin[2])
 
   f_xy = np.ones(grid.shape[2])
   for i in range(grid.shape[2]):
-    f_xy[i] = np.average(grid.f[:,:,i])
+    f_xy[i] = grid.f_xy[i] / (grid.shape[0]*grid.shape[1]) 
 
   # Cabot's h
   h = 0.
@@ -212,11 +222,11 @@ def mixing_zone(grid, thresh = .01):
   h_cabot = (h * L / f_xy.shape[0])
 
   # visual h
-  h_visual = ( find_root(grid.x[1,1,:,2], f_xy, y0 = thresh) 
-             - find_root(grid.x[1,1,:,2], f_xy, y0 = 1-thresh)) / 2.
+  zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)
+  h_visual = ( find_root(zs, f_xy, y0 = thresh) 
+             - find_root(zs, f_xy, y0 = 1-thresh)) / 2.
 
-  f_m = np.where(grid.f[:,:,:] < .5, grid.f[:,:,:]*2, 2*(1.-grid.f[:,:,:]))
-  X = np.average(f_m)*grid.shape[2]/h
+  X = grid.f_m/(h*grid.shape[0]*grid.shape[1])
 
   return h_cabot, h_visual, X
 
@@ -225,13 +235,14 @@ def energy_budget(grid):
   from my_utils import find_root
 
   # Potential
-  dV = np.prod(grid.x[1,1,1,:]-grid.x[0,0,0,:])
+  zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)
+  dV = grid.dx * grid.dx * grid.dx 
   U = 0.
   for i in range(grid.shape[2]):
-    U = U - np.sum(grid.f[:,:,i]) * grid.x[0,0,i,2] * dV
-  U0 = np.prod(grid.shape)/2. * dV *grid.x[0,0,int(grid.shape[2]*3./4.),2]
+    U = U - grid.f_xy[i] * zs[i] * dV
+  U0 = np.prod(grid.shape)/2. * dV * zs[int(grid.shape[2]*3./4.)]
 
   # Kinetic
-  K = np.sum(np.square(grid.ux)+np.square(grid.uy) + np.square(grid.uz))*dV/2.
+  K = grid.v2 * dV/2.
   return Atwood*g*(U0 - U), K
 

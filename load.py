@@ -43,7 +43,7 @@ def process(job):
   data = Grid(args.ninterp * params['order'], params['root_mesh'], params['extent_mesh'], np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']))
   time = input_file.time
   norder = input_file.norder
-  block = int(32768/4) #input_file.nelm
+  block = int(32768/16) #input_file.nelm
   while True:
     tic()
     nelm, pos, vel, t = input_file.get_elem(block)
@@ -106,6 +106,14 @@ def process(job):
     ans['TMin']   = float(min(ans['TMin'], np.amin(t_trans)))
     ans['UAbs']   = float(max(ans['UAbs'], max_speed))
 
+    # Renorm
+    tic()
+    Tt_low = -0.0005; Tt_high = 0.0005
+    t_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
+    t_trans = np.maximum(t_trans, 0.)
+    t_trans = np.minimum(t_trans, 1.)
+    toc('renorm')
+
     # switch from list of elements to grid
     data.add(pos_trans, f_elm = t_trans)
     t_trans = None; gc.collect()
@@ -119,14 +127,6 @@ def process(job):
 
   input_file.close()
   data.add_pos()
-
-  # Renorm
-  tic()
-  Tt_low = -0.0005; Tt_high = 0.0005
-  data.f = (data.f - Tt_low)/(Tt_high - Tt_low)
-  data.f = np.maximum(data.f, 0.)
-  data.f = np.minimum(data.f, 1.)
-  toc('renorm')
 
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*dx_max/params['conductivity']
@@ -159,6 +159,27 @@ def process(job):
       np.save("{:s}-cont{:d}".format(args.name, 2), data.cont)
     toc('contour')
 
+  # Scatter plot of temperature (slice through pseudocolor in visit)
+  tic()
+  if args.slice:
+    plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
+
+  if args.Fourier:
+    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
+                  slices = [.5],
+                  contour = args.contour
+                 )
+  
+  if args.mixing_cdf:
+    plt.figure()
+    ax1 = plt.subplot(1,1,1)
+    ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
+    plt.xlim([-.1,1.1])
+    plt.ylim([0,1])
+    plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
+  toc('plot')
+
+  data.f = None; data.ux = None; data.uy = None; data.uz = None
   if args.mixing_zone:
     tic()
     h_cabot, h_visual, X = mixing_zone(data)
@@ -178,30 +199,10 @@ def process(job):
     toc('energy_budget')
 
     if not args.series:
-      print("Energy Budget (P,K): {:e} {:e}".format(P,K))
-   
-  # Scatter plot of temperature (slice through pseudocolor in visit)
-  tic()
-  if args.slice:
-    plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
-
-  if args.Fourier:
-    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
-                  slices = [.5],
-                  contour = args.contour
-                 )
-  
-  if args.mixing_cdf:
-    plt.figure()
-    ax1 = plt.subplot(1,1,1)
-    ax1.hist(data.f.flatten(), bins=1000, normed=True, range=(-0.1,1.1), cumulative=True)
-    plt.xlim([-.1,1.1])
-    plt.ylim([0,1])
-    plt.savefig("{:s}{:05d}-cdf.png".format(args.name, frame))
+      print("Energy Budget (P,K): {:e} {:e}".format(P,K))  
 
   data = None; gc.collect()
-
-  toc('plot')
+  
   if not args.series and args.display:
     plt.show()
   plt.close('all')
