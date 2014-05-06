@@ -13,13 +13,15 @@ def process(job):
   import numpy as np
   from my_utils import find_root, lagrange_matrix
   from my_utils import transform_field_elements
-  from my_utils import transform_position_elements
+  from my_utils import TransformFieldElements
+  from my_utils import TransformPositionElements
   from Grid import Grid
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum
 #  from Grid import fractal_dimension
   from nek import from_nek
   from tictoc import tic, toc
+  from threading import Thread
 #  from memory import resident
 
   ans = {}
@@ -57,16 +59,38 @@ def process(job):
     trans = lagrange_matrix(gll,cart)
     if args.verbose:
       print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
-  pos_trans = transform_position_elements(pos, trans, cart)
-  pos = None; gc.collect()
-  t_trans = transform_field_elements(t, trans, cart)
-  t = None; gc.collect()
-  uz_trans = transform_field_elements(vel[:,:,2], trans, cart)
-  vel = np.delete(vel, 2, 2); gc.collect()
-  uy_trans = transform_field_elements(vel[:,:,1], trans, cart)
-  vel = np.delete(vel, 1, 2); gc.collect()
-  ux_trans = transform_field_elements(vel[:,:,0], trans, cart)
-  vel = None; gc.collect()
+
+  x_thread = TransformPositionElements(pos, trans, cart)
+  x_thread.start()
+
+  t_thread = TransformFieldElements(t, trans, cart)
+  t_thread.start()
+  uz_thread = TransformFieldElements(vel[:,:,2], trans, cart)
+  uz_thread.start()
+  uy_thread = TransformFieldElements(vel[:,:,1], trans, cart)
+  uy_thread.start()
+  ux_thread = TransformFieldElements(vel[:,:,0], trans, cart)
+  ux_thread.start()
+
+  x_thread.join()
+  pos_trans = x_thread.p_trans
+  del x_thread; pos = None; gc.collect()
+
+  t_thread.join()
+  t_trans = t_thread.f_trans 
+  del t_thread; t = None; gc.collect()
+
+  uz_thread.join()
+  uz_trans = uz_thread.f_trans 
+  del uz_thread; vel = np.delete(vel, 2, 2); gc.collect()
+
+  uy_thread.join()
+  uy_trans = uy_thread.f_trans 
+  del uy_thread; vel = np.delete(vel, 1, 2); gc.collect()
+
+  ux_thread.join()
+  ux_trans = ux_thread.f_trans 
+  del ux_thread; vel = None; gc.collect()
 
   # Print some stuff 
   max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
@@ -238,7 +262,6 @@ for i, res in enumerate(stuff):
   else:
     results[res[0]] = res[1]
   with open(fname, 'w') as f:
-    print(results)
     json.dump(results,f)
   run_time = time.time() - start_time
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, i/run_time)) 

@@ -46,6 +46,9 @@ def transform_field_elements(f, trans, cart):
   from tictoc import tic, toc
   import numpy as np
   import gc
+#  f = args['f']
+#  trans = args['trans']
+#  cart = args['cart']
   ninterp = trans.shape[0]
   norder = trans.shape[1]
   nelm = f.shape[1]
@@ -72,6 +75,17 @@ def transform_field_elements(f, trans, cart):
   gc.collect()
 
   return f_trans
+
+from threading import Thread
+class TransformFieldElements(Thread):
+  def  __init__(self, f, trans, cart):
+    Thread.__init__(self)
+    self.f = f
+    self.trans = trans
+    self.cart = cart
+
+  def run(self):
+    self.f_trans = transform_field_elements(self.f, self.trans, self.cart)
 
 def transform_position_elements(p, trans, cart):
   from tictoc import tic, toc
@@ -102,4 +116,17 @@ def transform_position_elements(p, trans, cart):
     pos_trans[:,i,2] = pos_tmp[:,:,:].flatten(order='F')
   toc('trans_pos')
   return pos_trans
+
+from threading import Thread
+class TransformPositionElements(Thread):
+  def  __init__(self, p, trans, cart):
+    Thread.__init__(self)
+    self.p = p
+    self.trans = trans
+    self.cart = cart
+
+  def run(self):
+    self.p_trans = transform_position_elements(self.p, self.trans, self.cart)
+
+
 
