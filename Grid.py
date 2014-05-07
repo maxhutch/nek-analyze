@@ -26,86 +26,64 @@ class Grid:
     self.zind    = int(self.shape[2]/2. + .5)
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
+    #self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
 
-  def add(self, pos_elm, f_elm = None, ux_elm = None, uy_elm = None, uz_elm = None):
+  def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
-    import gc
-    from memory import resident
-    ''' field grid '''
-    if f_elm != None:
-      if self.f == None:
-        self.f = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.f_m += np.sum(np.where(f_elm[:,:] < .5, f_elm[:,:]*2, 2*(1.-f_elm[:,:])))
-      pdf_partial, foo = np.histogram(f_elm.flatten(), bins=self.nbins, range=(-0.1, 1.1))
-      self.pdf += pdf_partial
-      for i in range(pos_elm.shape[1]):
-        f_tmp = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
-        root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
-        off = self.yind - root[1]
-        if off >= 0 and off < self.order:
-          self.yslice[root[0]:root[0]+self.order, 
-                      root[2]:root[2]+self.order] = f_tmp[:,off,:]
-        off = self.zind - root[2]
-        if off >= 0 and off < self.order:
-          self.zslice[root[0]:root[0]+self.order, 
-                      root[1]:root[1]+self.order] = f_tmp[:,:,off]
+    import numpy.linalg as lin
 
+    '''
+    if self.f == None:
+      self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+    '''
 
-        self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
+#    self.f_m += np.sum(np.where(f_elm[:,:] < .5, f_elm[:,:]*2, 2*(1.-f_elm[:,:])))
+    self.f_m += np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
+    self.v2  += np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
+    pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
+    self.pdf += pdf_partial
+
+    for i in range(pos_elm.shape[1]):
+      root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+      yoff = self.yind - root[1]
+      zoff = self.zind - root[2]
+      f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+      self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
+      if yoff >= 0 and yoff < self.order:
+        self.yslice[root[0]:root[0]+self.order, 
+                    root[2]:root[2]+self.order] = f_tmp[:,yoff,:]
+      if zoff >= 0 and zoff < self.order:
+        ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
+        uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
+        uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
+        self.zslice[root[0]:root[0]+self.order, 
+                    root[1]:root[1]+self.order] = f_tmp[:,:,zoff]
+        self.zsliceu[root[0]:root[0]+self.order, 
+                     root[1]:root[1]+self.order, 0] = ux_tmp[:,:,zoff]
+        self.zsliceu[root[0]:root[0]+self.order, 
+                     root[1]:root[1]+self.order, 1] = uy_tmp[:,:,zoff]
+        self.zsliceu[root[0]:root[0]+self.order, 
+                     root[1]:root[1]+self.order, 2] = uz_tmp[:,:,zoff]
+        #self.dotzsliceu[root[0]:root[0]+self.order, 
+        #                root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
         '''
         self.f[root[0]:root[0]+self.order,
                root[1]:root[1]+self.order,
                root[2]:root[2]+self.order] = f_tmp
         '''
-
-    ''' field grid '''
-    if ux_elm != None:
-      if self.ux == None:
-        self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.v2 += np.sum(np.square(ux_elm))
-      for i in range(pos_elm.shape[1]):
-        u_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
-        root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
-        off = self.zind - root[2]
-        if off >= 0 and off < self.order:
-          self.zsliceu[root[0]:root[0]+self.order, 
-                       root[1]:root[1]+self.order, 0] = u_tmp[:,:,off]
         '''
         self.ux[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
                 root[2]:root[2]+self.order] = u_tmp
         '''
- 
-    ''' field grid '''
-    if uy_elm != None:
-      if self.uy == None:
-        self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.v2 += np.sum(np.square(uy_elm))
-      for i in range(pos_elm.shape[1]):
-        u_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
-        root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
-        off = self.zind - root[2]
-        if off >= 0 and off < self.order:
-          self.zsliceu[root[0]:root[0]+self.order, 
-                       root[1]:root[1]+self.order, 1] = u_tmp[:,:,off]
         '''
         self.uy[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
                 root[2]:root[2]+self.order] = u_tmp 
         '''
-
-    ''' field grid '''
-    if uz_elm != None:
-      if self.uz == None:
-        self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.v2 += np.sum(np.square(uz_elm))
-      for i in range(pos_elm.shape[1]):
-        u_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
-        root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
-        off = self.zind - root[2]
-        if off >= 0 and off < self.order:
-          self.zsliceu[root[0]:root[0]+self.order, 
-                       root[1]:root[1]+self.order, 2] = u_tmp[:,:,off]
         '''
         self.uz[root[0]:root[0]+self.order,
                 root[1]:root[1]+self.order,
@@ -199,7 +177,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
   plt.yscale('log')
   plt.xlabel('Mode Number')
   plt.ylabel('Amplitude')
-#  plt.ylim([10**(-20),.25*Atwood*g])
+  plt.ylim([10**(-20),.25*Atwood*g])
 
   modes_x = np.fft.fftfreq( grid.shape[0], grid.dx)
   modes_y = np.fft.rfftfreq(grid.shape[1], grid.dx)
@@ -288,7 +266,7 @@ def mixing_zone(grid, thresh = .01):
   h_visual = ( find_root(zs, f_xy, y0 = thresh) 
              - find_root(zs, f_xy, y0 = 1-thresh)) / 2.
 
-  X = grid.f_m/(h*grid.shape[0]*grid.shape[1])
+  X = float(grid.f_m/(h*grid.shape[0]*grid.shape[1]))
 
   return h_cabot, h_visual, X
 

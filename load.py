@@ -13,6 +13,7 @@ def process(job):
   import numpy as np
   from my_utils import find_root, lagrange_matrix
   from my_utils import transform_field_elements
+  from my_utils import transform_position_elements
   from my_utils import TransformFieldElements
   from my_utils import TransformPositionElements
   from Grid import Grid
@@ -41,7 +42,7 @@ def process(job):
   data = Grid(args.ninterp * params['order'], params['root_mesh'], params['extent_mesh'], np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']))
   time = input_file.time
   norder = input_file.norder
-  block = 32768 #input_file.nelm
+  block = int(32768/8) #input_file.nelm
   while True:
     tic()
     nelm, pos, vel, t = input_file.get_elem(block)
@@ -68,35 +69,14 @@ def process(job):
       if args.verbose:
         print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
 
-    x_thread = TransformPositionElements(pos, trans, cart)
-    x_thread.start()
-    x_thread.join()
-    pos_trans = x_thread.p_trans
-    del x_thread; pos = None; gc.collect()
+    #pos_trans = transform_position_elements(pos, trans, cart)
+    pos_trans = pos
+    pos = None; gc.collect()
 
-    t_thread = TransformFieldElements(t, trans, cart)
-    t_thread.start()
-    t_thread.join()
-    t_trans = t_thread.f_trans 
-    del t_thread; t = None; gc.collect()
-
-    uz_thread = TransformFieldElements(vel[:,:,2], trans, cart)
-    uz_thread.start()
-    uz_thread.join()
-    uz_trans = uz_thread.f_trans 
-    del uz_thread; vel = np.delete(vel, 2, 2); gc.collect()
-
-    uy_thread = TransformFieldElements(vel[:,:,1], trans, cart)
-    uy_thread.start()
-    uy_thread.join()
-    uy_trans = uy_thread.f_trans 
-    del uy_thread; vel = np.delete(vel, 1, 2); gc.collect()
-
-    ux_thread = TransformFieldElements(vel[:,:,0], trans, cart)
-    ux_thread.start()
-    ux_thread.join()
-    ux_trans = ux_thread.f_trans 
-    del ux_thread; vel = None; gc.collect()
+    hunk = np.concatenate((t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
+    hunk_trans = transform_field_elements(hunk, trans, cart)
+    t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
+    t, vel = None, None; gc.collect()
 
     # Print some stuff 
     max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
@@ -113,18 +93,10 @@ def process(job):
     toc('renorm')
 
     # switch from list of elements to grid
-    data.add(pos_trans, f_elm = t_trans)
-    t_trans = None; gc.collect()
-    data.add(pos_trans, ux_elm = ux_trans)
-    ux_trans = None; gc.collect()
-    data.add(pos_trans, uy_elm = uy_trans)
-    uy_trans = None; gc.collect()
-    data.add(pos_trans, uz_elm = uz_trans)
-    uz_trans = None; gc.collect()
-    pos_trans = None; gc.collect() 
+    data.add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
+    pos_trans, t_trans, ux_trans, uy_trans, uz_trans = None, None, None, None, None; gc.collect() 
 
   input_file.close()
-  data.add_pos()
 
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*dx_max/params['conductivity']
@@ -157,9 +129,6 @@ def process(job):
       np.save("{:s}-cont{:d}".format(args.name, 2), data.cont)
     toc('contour')
 
-  # Scatter plot of temperature (slice through pseudocolor in visit)
-  data.f = None; data.ux = None; data.uy = None; data.uz = None
-
   tic()
   if args.Fourier:
     plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
@@ -167,6 +136,7 @@ def process(job):
                   contour = args.contour
                  )
   
+  # Scatter plot of temperature (slice through pseudocolor in visit)
   if args.slice:
     plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
 
