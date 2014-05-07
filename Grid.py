@@ -8,7 +8,7 @@ class Grid:
     return
 
   """ Unpack list of elements into single grid """
-  def __init__(self, order, origin, corner, shape):
+  def __init__(self, order, origin, corner, shape, boxes = False):
     import numpy as np
     self.order = order 
     self.origin = origin
@@ -27,11 +27,15 @@ class Grid:
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
+    self.boxes = None
+    if boxes:
+      self.boxes = np.zeros(int(np.log2(self.order)))
+    
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
     import numpy.linalg as lin
-
+    import scipy.ndimage.measurements as measurements
     '''
     if self.f == None:
       self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
@@ -45,11 +49,28 @@ class Grid:
     pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
     self.pdf += pdf_partial
 
+    if self.boxes != None:
+      f_tmp  = np.reshape(f_elm, (self.order,self.order,self.order*f_elm.shape[1]), order='F')
+      fs = np.sign(f_tmp-0.5)
+      X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order*f_elm.shape[1]].astype(int), 3, axis=0)
+      for j in range(1,int(np.log2(self.order))+1):
+        fac = int(2**j)
+        regions = np.array((X/fac), dtype=int) \
+                + np.array((Y/fac), dtype=int) * (self.order/fac) \
+                + np.array((Z/fac), dtype=int) * (self.order/fac)**2 
+        N = (self.order/fac)**3 * f_elm.shape[1]
+        self.boxes[j-1] += (N - np.sum(np.multiply(
+                            measurements.minimum(fs, labels=regions, index=np.arange(N)), 
+                            measurements.maximum(fs, labels=regions, index=np.arange(N))
+                           )))/2
+
+
     for i in range(pos_elm.shape[1]):
       root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
       yoff = self.yind - root[1]
       zoff = self.zind - root[2]
       f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+
       self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
       if yoff >= 0 and yoff < self.order:
         self.yslice[root[0]:root[0]+self.order, 

@@ -39,7 +39,11 @@ def process(job):
   # Load file
   fname = "{:s}0.f{:05d}".format(args.name, frame)
   input_file = NekFile(fname)
-  data = Grid(args.ninterp * params['order'], params['root_mesh'], params['extent_mesh'], np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']))
+  data = Grid(args.ninterp * params['order'], 
+              params['root_mesh'], 
+              params['extent_mesh'], 
+              np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
+              boxes = args.boxes)
   time = input_file.time
   norder = input_file.norder
   block = int(32768/8) #input_file.nelm
@@ -105,6 +109,7 @@ def process(job):
     print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
     print("Max speed: {:f}".format(ans['UAbs']))
     print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
+    print("Boxes:" + str(data.boxes))
 
   center = data.shape[1]/2
   if not args.contour:
@@ -192,6 +197,7 @@ parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, d
 parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
 parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
 parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
+parser.add_argument("-b", "--boxes", help="Compute box covering numbers", action="store_true")
 parser.add_argument("-d", "--display", help="Display plots with X", action="store_true", default=False)
 parser.add_argument("-v", "--verbose", help="Should I be really verbose, that is wordy?", action="store_true", default=False)
 args = parser.parse_args()
