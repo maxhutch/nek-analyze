@@ -129,4 +129,19 @@ class TransformPositionElements(Thread):
     self.p_trans = transform_position_elements(self.p, self.trans, self.cart)
 
 
+def compute_index(root, shape):
+  import numpy as np
+  if np.all(shape == 0):
+    return 0
+  power = np.prod(shape) / 8
+  frac_root = np.divide(root.astype(np.float64), shape)
+  ind = 0
+  if frac_root[0] >= .5:
+    ind = ind + 1
+  if frac_root[1] >= .5:
+    ind = ind + 2
+  if frac_root[2] >= .5:
+    ind = ind + 4
+  shape = np.array(shape / 2, dtype = int)
+  return ind * power + compute_index(np.mod(root,shape), shape)
 

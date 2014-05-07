@@ -101,6 +101,11 @@ def process(job):
     pos_trans, t_trans, ux_trans, uy_trans, uz_trans = None, None, None, None, None; gc.collect() 
 
   input_file.close()
+  if data.interface != None:
+    for i in range(int(np.log2(data.order)), int(np.log2(np.min(data.shape[0])))):
+      data.interface = np.reshape(data.interface, (-1,8))
+      data.interface = np.sum(data.interface, axis=1, dtype=np.bool_)
+      data.boxes[i] = np.sum(data.interface) 
 
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*dx_max/params['conductivity']
@@ -109,7 +114,7 @@ def process(job):
     print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
     print("Max speed: {:f}".format(ans['UAbs']))
     print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
-    print("Boxes:" + str(data.boxes))
+    print("Boxes: " + str(np.log2(data.boxes)))
 
   center = data.shape[1]/2
   if not args.contour:

@@ -28,14 +28,17 @@ class Grid:
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
     self.boxes = None
+    self.interface = None
     if boxes:
-      self.boxes = np.zeros(int(np.log2(self.order)))
+      self.boxes = np.zeros(int(np.log2(np.min(self.shape))))
+      self.interface = np.zeros(np.prod(self.shape / self.order), dtype=np.bool_)
     
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
     import numpy.linalg as lin
     import scipy.ndimage.measurements as measurements
+    from my_utils import compute_index
     '''
     if self.f == None:
       self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
@@ -59,14 +62,20 @@ class Grid:
                 + np.array((Y/fac), dtype=int) * (self.order/fac) \
                 + np.array((Z/fac), dtype=int) * (self.order/fac)**2 
         N = (self.order/fac)**3 * f_elm.shape[1]
-        self.boxes[j-1] += (N - np.sum(np.multiply(
-                            measurements.minimum(fs, labels=regions, index=np.arange(N)), 
-                            measurements.maximum(fs, labels=regions, index=np.arange(N))
-                           )))/2
-
+        interface = np.multiply(
+                     measurements.minimum(fs, labels=regions, index=np.arange(N)), 
+                     measurements.maximum(fs, labels=regions, index=np.arange(N))
+                    ) 
+        self.boxes[j-1] += (N - np.sum(interface))/2
 
     for i in range(pos_elm.shape[1]):
       root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+      if self.interface != None:
+        foo = False
+        if np.max(f_elm[:,i]-.5) * np.min(f_elm[:,i]-.5) < 0:
+          foo = True
+        self.interface[compute_index(root / self.order, self.shape/self.order)] = foo
+
       yoff = self.yind - root[1]
       zoff = self.zind - root[2]
       f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
