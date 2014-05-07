@@ -26,7 +26,7 @@ class Grid:
     self.zind    = int(self.shape[2]/2. + .5)
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
-    #self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
+    self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
@@ -40,7 +40,6 @@ class Grid:
       self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
     '''
 
-#    self.f_m += np.sum(np.where(f_elm[:,:] < .5, f_elm[:,:]*2, 2*(1.-f_elm[:,:])))
     self.f_m += np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
     self.v2  += np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
     pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
@@ -67,8 +66,8 @@ class Grid:
                      root[1]:root[1]+self.order, 1] = uy_tmp[:,:,zoff]
         self.zsliceu[root[0]:root[0]+self.order, 
                      root[1]:root[1]+self.order, 2] = uz_tmp[:,:,zoff]
-        #self.dotzsliceu[root[0]:root[0]+self.order, 
-        #                root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
+        self.dotzsliceu[root[0]:root[0]+self.order, 
+                        root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
         '''
         self.f[root[0]:root[0]+self.order,
                root[1]:root[1]+self.order,
@@ -192,34 +191,31 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
 
     # compute Taylor microscale
     spectrum = np.square(np.abs(np.fft.rfft2(grid.zslice[:,:])) / (grid.shape[0]*grid.shape[1]))
-    ax1.plot(modes.ravel(), .25 * Atwood * g * spectrum.ravel(), 'o', label='P')
+    ax1.plot(modes.ravel(), .25 * Atwood * g * spectrum.ravel(), 'bo', label='P')
 
-    spectrum = np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,2]))/ (grid.shape[0]*grid.shape[1]))
-    ax1.plot(modes.ravel(), .5*spectrum.ravel(), 'x', label='K_z')
-    spectrum += np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,0])) / (grid.shape[0]*grid.shape[1]))
-    spectrum += np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,1])) / (grid.shape[0]*grid.shape[1]))
-    ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
+    spectrum_uz = np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,2]))/ (grid.shape[0]*grid.shape[1]))
+    spectrum_xy = np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,0])) / (grid.shape[0]*grid.shape[1]))
+    spectrum_xy += np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,1])) / (grid.shape[0]*grid.shape[1]))
+    ax1.plot(modes.ravel(), .5*(spectrum_uz + spectrum_xy).ravel(), 'bx', label='K')
+    ax1.plot(modes.ravel(), .5*(spectrum_uz.ravel()     ), 'rx', label='K_z')
+    ax1.plot(modes.ravel(), .5*(spectrum_xy.ravel()     ), 'gx', label='K_xy')
 
-    '''
-    tmp = np.average(np.square((grid.uz[:,:,z+1] - grid.uz[:,:,z-1])/(grid.x[0,0,z+1,2] - grid.x[0,0,z-1,2]))) 
-    taylor_z = np.sqrt(np.average(np.square(grid.uz[:,:,z])) / tmp)
+    tmp = np.average(np.square((grid.dotzsliceu[:,:]))) 
+    taylor_z = np.sqrt(np.average(np.square(grid.zsliceu[:,:,2])) / tmp)
     kolmog_z = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
-    ax1.vlines(1./taylor_z, 1.e-20, 1., label='lambda_z', color='g', linestyles='dashdot')
-    ax1.vlines(1./kolmog_z, 1.e-20, 1., label='eta_z', color='g', linestyles='dotted')
-    tmp = np.average(np.square((grid.uy[:,2:,z] - grid.uy[:,:-2,z])/(grid.x[0,2,z,1] - grid.x[0,0,z,1]))) 
-    taylor_y = np.sqrt(np.average(np.square(grid.uy[:,1:-1,z])) / tmp)
+    ax1.vlines(1./taylor_z, 1.e-20, 1., label='lambda_z', color='r', linestyles='dashdot')
+    ax1.vlines(1./kolmog_z, 1.e-20, 1., label='eta_z', color='r', linestyles='dotted')
+    tmp = np.average(np.square((grid.zsliceu[:,2:,1] - grid.zsliceu[:,:-2,1])/(2.*grid.dx))) 
+    taylor_y = np.sqrt(np.average(np.square(grid.zsliceu[:,1:-1,1])) / tmp)
     kolmog_y = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
 
-    tmp = np.average(np.square((grid.ux[2:,:,z] - grid.ux[:-2,:,z])/(grid.x[2,0,z,0] - grid.x[0,0,z,0]))) 
-    taylor_x = np.sqrt(np.average(np.square(grid.uy[1:-1,:,z])) / tmp)
+    tmp = np.average(np.square((grid.zsliceu[2:,:,0] - grid.zsliceu[:-2,:,0])/(2.*grid.dx))) 
+    taylor_x = np.sqrt(np.average(np.square(grid.zsliceu[1:-1,:,0])) / tmp)
     kolmog_x = ((8.9e-7)**2 / (15. * tmp))**(1./4.)
 
-    spectrum += np.square(np.abs(np.fft.rfft2(grid.ux[:,:,z])) / (grid.shape[0]*grid.shape[1]))
-    spectrum += np.square(np.abs(np.fft.rfft2(grid.uy[:,:,z])) / (grid.shape[0]*grid.shape[1]))
-    ax1.plot(modes.ravel(), .5*spectrum.ravel(), '+', label='K')
-    ax1.vlines(2./(taylor_x+taylor_y), 1.e-20, 1., label='lambda_xy', color='y', linestyles='dashdot')
-    ax1.vlines(2./(kolmog_z+kolmog_y), 1.e-20, 1., label='eta_xy', color='y', linestyles='dotted')
-    '''
+    ax1.vlines(2./(taylor_x+taylor_y), 1.e-20, 1., label='lambda_xy', color='g', linestyles='dashdot')
+    ax1.vlines(2./(kolmog_z+kolmog_y), 1.e-20, 1., label='eta_xy', color='g', linestyles='dotted')
+
   plt.legend(loc=3)
   
   xs = np.sort(modes.ravel())
