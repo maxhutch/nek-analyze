@@ -32,7 +32,7 @@ def find_root(x, y, y0 = .5, desired_resolution = None):
 """ Build Lagrange interpolation matrix """
 def lagrange_matrix(A,B):
   import numpy as np
-  M = np.zeros((B.size,A.size), order='F', dtype=np.float32)
+  M = np.zeros((B.size,A.size), order='F', dtype=np.float64)
   for i in range(A.size):
     for j in range(B.size):
       M[j,i] =  1.
@@ -96,11 +96,11 @@ def transform_position_elements(p, trans, cart):
 
   # Transform positions to uniform grid
   tic()
-  pos_tmp = np.zeros((ninterp, ninterp, ninterp), order='F', dtype=np.float32)
-  pos_trans = np.zeros((ninterp**3, nelm, 3),     order='F', dtype=np.float32)
-  block_x = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float32)
-  block_y = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float32)
-  block_z = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float32)
+  pos_tmp = np.zeros((ninterp, ninterp, ninterp), order='F', dtype=np.float64)
+  pos_trans = np.zeros((ninterp**3, nelm, 3),     order='F', dtype=np.float64)
+  block_x = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float64)
+  block_y = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float64)
+  block_z = np.zeros((ninterp,ninterp,ninterp),   order='F', dtype=np.float64)
   for j in range(ninterp):
     block_x[j,:,:] = cart[j]
     block_y[:,j,:] = cart[j]
