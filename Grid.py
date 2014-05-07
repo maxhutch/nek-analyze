@@ -34,10 +34,10 @@ class Grid:
 
     '''
     if self.f == None:
-      self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
-      self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float32)
+      self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
+      self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
+      self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
+      self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
     '''
 
     self.f_m += np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
@@ -92,7 +92,7 @@ class Grid:
   def add_pos(self):
     import numpy as np
     ''' position grid '''
-    self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F', dtype=np.float32)
+    self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F', dtype=np.float64)
     for i in range(self.shape[0]):
       self.x[i,:,:,0] = self.dx*i + self.origin[0]
     for i in range(self.shape[1]):
