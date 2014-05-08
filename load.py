@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 def process(job):  
+  # Split the arguments
   args = job[0]
   frame = job[1]
 
@@ -11,22 +12,27 @@ def process(job):
   import matplotlib.pyplot as plt
   import json
   import numpy as np
+  from Grid import Grid
   from my_utils import find_root, lagrange_matrix
   from my_utils import transform_field_elements
   from my_utils import transform_position_elements
-  from my_utils import TransformFieldElements
-  from my_utils import TransformPositionElements
-  from Grid import Grid
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum, plot_dist
   from nek import NekFile
   from tictoc import tic, toc
-  from threading import Thread
 
   ans = {}
   # Load params
   with open("{:s}.json".format(args.name), 'r') as f:
     params = json.load(f)
+  extent = np.array(params['extent_mesh']) - np.array(params['root_mesh'])
+  size = np.array(params['shape_mesh'], dtype=int)
+  ninterp = int(args.ninterp*params['order'])
+  cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
+  if args.verbose:
+    print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
+          extent[0], extent[1], extent[2], size[0], size[1], size[2], params['order']))
+  trans = None
 
   # inits
   ans['PeCell'] = 0.
@@ -35,78 +41,72 @@ def process(job):
   ans['TMax']   = 0.
   ans['TMin']   = 0.
   ans['UAbs']   = 0.
-
-  # Load file
-  fname = "{:s}0.f{:05d}".format(args.name, frame)
-  input_file = NekFile(fname)
   data = Grid(args.ninterp * params['order'], 
               params['root_mesh'], 
               params['extent_mesh'], 
               np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
               boxes = args.boxes)
+
+  # Load file
+  fname = "{:s}0.f{:05d}".format(args.name, frame)
+  input_file = NekFile(fname)
+
   time = input_file.time
   norder = input_file.norder
-  block = int(32768/8) #input_file.nelm
   while True:
     tic()
-    nelm, pos, vel, t = input_file.get_elem(block)
+    nelm, pos, vel, t = input_file.get_elem(args.block)
     toc('read')
     if nelm < 1:
       break
 
-    # Learn about the mesh 
-    if True or frame == args.frame:
-      origin = np.array(params['root_mesh'])
-      corner = np.array(params['extent_mesh'])
-      extent = corner-origin
-      size = np.array(params['shape_mesh'], dtype=int)
-      if args.verbose:
-        print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
-              extent[0], extent[1], extent[2], size[0], size[1], size[2], norder))
-
-      # setup the transformation
-      ninterp = int(args.ninterp*norder)
+    if trans == None:
       gll  = pos[0:norder,0,0] - pos[0,0,0]
       dx_max = np.max(gll[1:] - gll[0:-1])
-      cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
       trans = lagrange_matrix(gll,cart)
       if args.verbose:
         print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
 
+
     #pos_trans = transform_position_elements(pos, trans, cart)
+    # pos[0,:,:] is invariant under transform, and it is all we need
     pos_trans = pos
     pos = None; gc.collect()
 
+    # transform all the fields at once
     hunk = np.concatenate((t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
     hunk_trans = transform_field_elements(hunk, trans, cart)
     t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
     t, vel = None, None; gc.collect()
 
-    # Print some stuff 
+    # Save some results pre-renorm
     max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
     ans['TMax']   = float(max(ans['TMax'], np.amax(t_trans)))
     ans['TMin']   = float(min(ans['TMin'], np.amin(t_trans)))
     ans['UAbs']   = float(max(ans['UAbs'], max_speed))
 
-    # Renorm
+    # Renorm t -> [0,1]
     tic()
-    Tt_low = -0.0005; Tt_high = 0.0005
+    Tt_low = -params['atwood']/2.; Tt_high = params['atwood']/2.
     t_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
     t_trans = np.maximum(t_trans, 0.)
     t_trans = np.minimum(t_trans, 1.)
     toc('renorm')
 
-    # switch from list of elements to grid
+    # stream the elements into the grid structure
     data.add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
     pos_trans, t_trans, ux_trans, uy_trans, uz_trans = None, None, None, None, None; gc.collect() 
 
   input_file.close()
+
+  # finish box counting
   if data.interface != None:
     for i in range(int(np.log2(data.order)), int(np.log2(np.min(data.shape[0])))):
       data.interface = np.reshape(data.interface, (-1,8))
       data.interface = np.sum(data.interface, axis=1, dtype=np.bool_)
       data.boxes[i] = np.sum(data.interface) 
-
+  
+  # more results
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*dx_max/params['conductivity']
   ans['ReCell'] = ans['UAbs']*dx_max/params['viscosity']
@@ -157,25 +157,21 @@ def process(job):
 
   if args.mixing_zone:
     tic()
-    h_cabot, h_visual, X = mixing_zone(data)
-    ans['h_cabot'] = h_cabot
-    ans['h_visual'] = h_visual
-    ans['Xi'] = X
+    ans['h_cabot'], ans['h_visual'], ans['Xi'] = mixing_zone(data)
     toc('mixing_zone')
 
     if not args.series:
-      print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(h_cabot,h_visual,X))
+      print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['Xi']))
 
   if True:
     tic()
-    P, K = energy_budget(data)
-    ans['P'] = P
-    ans['K'] = K
+    ans['P'], ans['K'] = energy_budget(data)
     toc('energy_budget')
 
     if not args.series:
-      print("Energy Budget (P,K): {:e} {:e}".format(P,K))  
+      print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
 
+  # free(data)
   data = None; gc.collect()
   
   if not args.series and args.display:
@@ -193,18 +189,19 @@ import time
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
-parser.add_argument("name", help="Nek *.fld output file")
-parser.add_argument("-f", "--frame", help="[Starting] Frame number", type=int, default=1)
-parser.add_argument("-e", "--frame_end", help="Ending frame number", type=int, default=-1)
-parser.add_argument("-s", "--slice", help="Display slice", action="store_true")
-parser.add_argument("-c", "--contour", help="Display contour", action="store_true")
-parser.add_argument("-n", "--ninterp", help="Interpolating order", type=float, default = 1.)
-parser.add_argument("-z", "--mixing_zone", help="Compute mixing zone width", action="store_true")
-parser.add_argument("-m", "--mixing_cdf", help="Plot CDF of box temps", action="store_true")
-parser.add_argument("-F", "--Fourier", help="Plot Fourier spectrum in x-y", action="store_true")
-parser.add_argument("-b", "--boxes", help="Compute box covering numbers", action="store_true")
-parser.add_argument("-d", "--display", help="Display plots with X", action="store_true", default=False)
-parser.add_argument("-v", "--verbose", help="Should I be really verbose, that is wordy?", action="store_true", default=False)
+parser.add_argument("name",                 help="Nek *.fld output file")
+parser.add_argument("-f",  "--frame",       help="[Starting] Frame number", type=int, default=1)
+parser.add_argument("-e",  "--frame_end",   help="Ending frame number", type=int, default=-1)
+parser.add_argument("-s",  "--slice",       help="Display slice", action="store_true")
+parser.add_argument("-c",  "--contour",     help="Display contour", action="store_true")
+parser.add_argument("-n",  "--ninterp",     help="Interpolating order", type=float, default = 1.)
+parser.add_argument("-z",  "--mixing_zone", help="Compute mixing zone width", action="store_true")
+parser.add_argument("-m",  "--mixing_cdf",  help="Plot CDF of box temps", action="store_true")
+parser.add_argument("-F",  "--Fourier",     help="Plot Fourier spectrum in x-y", action="store_true")
+parser.add_argument("-b",  "--boxes",       help="Compute box covering numbers", action="store_true")
+parser.add_argument("-nb", "--block",       help="Number of elements to process at a time", type=int, default=65536)
+parser.add_argument("-d",  "--display",     help="Display plots with X", action="store_true", default=False)
+parser.add_argument("-v",  "--verbose",     help="Should I be really verbose, that is wordy?", action="store_true", default=False)
 args = parser.parse_args()
 if args.frame_end == -1:
   args.frame_end = args.frame
@@ -215,10 +212,7 @@ if not args.display:
   matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-
 """ Load the data """
-from toolz.curried import map
-
 # Load params
 with open("{:s}.json".format(args.name), 'r') as f:
   params = json.load(f)
@@ -232,7 +226,7 @@ if len(jobs) > 2:
   pmap = p.load_balanced_view().map_async
   stuff = pmap(process, jobs)
 else:
-  stuff = map(process, jobs)
+  stuff =  map(process, jobs)
 
 fname = '{:s}-results.dat'.format(args.name)
 results = {}
@@ -248,9 +242,8 @@ for i, res in enumerate(stuff):
   with open(fname, 'w') as f:
     json.dump(results,f)
   run_time = time.time() - start_time
-  print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, i/run_time)) 
+  print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
 
-from os import system
 if args.series: 
   results_with_times = sorted([[float(elm[0]), elm[1]] for elm in results.items()])
   times, vals = zip(*results_with_times)
@@ -266,6 +259,7 @@ if args.series:
   plt.legend(loc=2)
   plt.savefig("{:s}-stability.png".format(args.name))
 
+  from os import system
   if args.slice:
     system("rm -f "+args.name+"-slice.mkv")
     system("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv")
