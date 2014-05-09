@@ -39,6 +39,7 @@ class Grid:
     import numpy.linalg as lin
     import scipy.ndimage.measurements as measurements
     from my_utils import compute_index
+    from tictoc import tic, toc
     '''
     if self.f == None:
       self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
@@ -47,12 +48,15 @@ class Grid:
       self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
     '''
 
+    tic()
     self.f_m += np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
     self.v2  += np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
     pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
     self.pdf += pdf_partial
+    toc('aggregate')
 
     if self.boxes != None:
+      tic()
       f_tmp  = np.reshape(f_elm, (self.order,self.order,self.order*f_elm.shape[1]), order='F')
       fs = np.sign(f_tmp-0.5)
       X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order*f_elm.shape[1]].astype(int), 3, axis=0)
@@ -67,14 +71,16 @@ class Grid:
                      measurements.maximum(fs, labels=regions, index=np.arange(N))
                     ) 
         self.boxes[j-1] += (N - np.sum(interface))/2
+      toc('box1')
 
-    for i in range(pos_elm.shape[1]):
-      root = np.array((pos_elm[0,i,:] - self.origin)/self.dx + .5, dtype=int)
+    for i in range(pos_elm.shape[0]):
+      root = np.array((pos_elm[i,:] - self.origin)/self.dx + .5, dtype=int)
       if self.interface != None:
         foo = False
         if np.max(f_elm[:,i]-.5) * np.min(f_elm[:,i]-.5) < 0:
           foo = True
-        self.interface[compute_index(root / self.order, self.shape/self.order)] = foo
+        key = np.array([2,2,2], dtype=int)
+        self.interface[compute_index((root / self.order) + key, self.shape/self.order)] = foo
 
       yoff = self.yind - root[1]
       zoff = self.zind - root[2]

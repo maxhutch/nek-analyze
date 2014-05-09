@@ -70,7 +70,7 @@ def process(job):
 
     #pos_trans = transform_position_elements(pos, trans, cart)
     # pos[0,:,:] is invariant under transform, and it is all we need
-    pos_trans = pos
+    pos_trans = pos[0,:,:]
     pos = None; gc.collect()
 
     # transform all the fields at once
@@ -114,7 +114,8 @@ def process(job):
     print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
     print("Max speed: {:f}".format(ans['UAbs']))
     print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
-    print("Boxes: " + str(np.log2(data.boxes)))
+    if args.boxes:
+      print("Boxes: " + str(np.log2(data.boxes)))
 
   center = data.shape[1]/2
   if not args.contour:

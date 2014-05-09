@@ -134,7 +134,7 @@ def compute_index(root, shape):
   if np.all(shape == 0):
     return 0
   power = np.prod(shape) / 8
-  frac_root = np.divide(root.astype(np.float64), shape)
+  frac_root = np.divide(np.mod(root, shape).astype(np.float64), shape)
   ind = 0
   if frac_root[0] >= .5:
     ind = ind + 1
