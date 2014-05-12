@@ -70,10 +70,17 @@ for i, res in enumerate(stuff):
 if args.series: 
   results_with_times = sorted([[float(elm[0]), elm[1]] for elm in results.items()])
   times, vals = zip(*results_with_times)
+  times = np.array(times, dtype=np.float64)
 
   # Numerical stability plot
+  from my_utils import find_root
   PeCs  = np.array([d['PeCell'] for d in vals])
   TMaxs = np.array([d['TAbs']   for d in vals])
+  for i in range(TMaxs.shape[0]):
+    if TMaxs[i] *2./params['atwood'] > 1.:
+      print("Simulation went unstable at t={:f}, PeCell={:f}+/-{:f}".format(times[i], (PeCs[i]+PeCs[i-1])/2, (PeCs[i]-PeCs[i-1])/2))
+      break
+
   plt.figure()
   ax1 = plt.subplot(1,1,1)
   plt.xlabel('Time (s)')
@@ -83,16 +90,19 @@ if args.series:
   plt.savefig("{:s}-stability.png".format(args.name))
 
   # Make a bunch of movies
-  from os import system
+  from os import devnull
+  from subprocess import call
+  foo = open(devnull, 'w')
   if args.slice:
-    system("rm -f "+args.name+"-slice.mkv")
-    system("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv")
+    call("rm -f "+args.name+"-slice.mkv", shell=True)
+    call("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv", shell=True, stdout = foo, stderr = foo)
   if args.mixing_cdf:
-    system("rm -f "+args.name+"-cdf.mkv")
-    system("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv")
+    call("rm -f "+args.name+"-cdf.mkv", shell=True)
+    call("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv", shell=True, stdout = foo, stderr = foo)
   if args.Fourier:
-    system("rm -f "+args.name+"-spectrum.mkv")
-    system("avconv -f image2 -i "+args.name+"%05d-spectrum.png -c:v h264 "+args.name+"-spectrum.mkv") 
+    call("rm -f "+args.name+"-spectrum.mkv", shell=True)
+    call("avconv -f image2 -i "+args.name+"%05d-spectrum.png -c:v h264 "+args.name+"-spectrum.mkv", shell=True, stdout = foo, stderr = foo) 
+  foo.close()
 
   # mixing zone analysis
   if args.mixing_zone: 

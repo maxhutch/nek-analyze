@@ -1,4 +1,4 @@
-print_timers = True
+print_timers = False
 
 """ Timers from SO """
 def tic():

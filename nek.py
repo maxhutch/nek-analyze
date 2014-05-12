@@ -8,7 +8,7 @@ class NekFile():
     self.nelm = int(htoks[5])
     self.norder = int(htoks[2])
     self.time = float(htoks[7])
-    print("Read {:d} elements of order {:d} at time {:f}".format(self.nelm, self.norder, self.time))
+    #print("Read {:d} elements of order {:d} at time {:f}".format(self.nelm, self.norder, self.time))
     #''' Assume isotropic elements '''
     self.ntot = self.nelm * self.norder**3
     #''' Check the test float '''

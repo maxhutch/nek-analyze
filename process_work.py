@@ -58,7 +58,6 @@ def process(job):
   time = input_file.time
   norder = input_file.norder
 
-  nthread = 2
   lock = Lock()
   targs = [lock, input_file, params, data, args]
   jobs  = [targs]*args.thread
@@ -71,7 +70,7 @@ def process(job):
       ans['TMin']   = float(min(ans['TMin'], r['TMin']))
       ans['UAbs']   = float(max(ans['UAbs'], r['UAbs']))
       ans['dx_max'] = float(max(ans['dx_max'], r['dx_max'])) 
-  print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, nthread))
+  print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, args.thread))
 
   input_file.close()
   
