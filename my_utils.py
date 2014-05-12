@@ -46,33 +46,25 @@ def transform_field_elements(f, trans, cart):
   from tictoc import tic, toc
   import numpy as np
   import gc
-#  f = args['f']
-#  trans = args['trans']
-#  cart = args['cart']
   ninterp = trans.shape[0]
   norder = trans.shape[1]
   nelm = f.shape[1]
 
+  tic()
   # Transform to uniform grid
   # z-first
-  tic()
   f_p = np.reshape(np.transpose(np.reshape(f, (norder**2, norder, nelm), order='F'), (1,0,2)), (norder, norder**2*nelm), order='F')
   f_tmp = np.reshape(np.transpose(np.reshape(trans.dot(f_p), (ninterp, norder**2, nelm), order='F'), (1,0,2)), (norder, norder*ninterp*nelm), order='F')
-  toc('trans_z')
 
   # then x
-  tic()
   f_tmp2 = np.reshape(trans.dot(f_tmp), (ninterp, norder, ninterp,nelm), order='F')
-  toc('trans_x')
 
   # then y
-  tic()
   f_p =     np.reshape(np.transpose(f_tmp2, (1,0,2,3)), (norder, ninterp**2*nelm), order='F')
   f_trans = np.reshape(np.transpose(np.reshape(trans.dot(f_p), (ninterp, ninterp, ninterp, nelm), order='F'), (1,0,2,3)), (ninterp**3, nelm),        order='F')
-  toc('trans_y')
+  toc('trans')
 
-  f_p = None; f_tmp2 = None; f_tmp = None
-  gc.collect()
+  #f_p = None; f_tmp2 = None; f_tmp = None; gc.collect()
 
   return f_trans
 

@@ -10,6 +10,7 @@ class Grid:
   """ Unpack list of elements into single grid """
   def __init__(self, order, origin, corner, shape, boxes = False):
     import numpy as np
+    from threading import Lock
     self.order = order 
     self.origin = origin
     self.corner = corner 
@@ -32,7 +33,7 @@ class Grid:
     if boxes:
       self.boxes = np.zeros(int(np.log2(np.min(self.shape))))
       self.interface = np.zeros(np.prod(self.shape / self.order), dtype=np.bool_)
-    
+    self.lock = Lock()
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
@@ -49,10 +50,15 @@ class Grid:
     '''
 
     tic()
-    self.f_m += np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
-    self.v2  += np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
+    tmp = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
+    with self.lock:
+      self.f_m += tmp
+    tmp = np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
+    with self.lock:
+      self.v2  += tmp
     pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
-    self.pdf += pdf_partial
+    with self.lock:
+      self.pdf += pdf_partial
     toc('aggregate')
 
     if self.boxes != None:

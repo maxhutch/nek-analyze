@@ -1,5 +1,74 @@
 #!/usr/bin/python3
 
+def tprocess(job):
+  import gc
+  import numpy as np
+  from my_utils import find_root, lagrange_matrix
+  from my_utils import transform_field_elements
+  from my_utils import transform_position_elements
+  from tictoc import tic, toc
+
+  lock = job[0]
+  input_file = job[1]
+  params = job[2]
+  data = job[3]
+
+  ans = {}
+  ans['TMax']   = 0.
+  ans['TMin']   = 0.
+  ans['UAbs']   = 0.
+  ans['dx_max'] = 0.
+  extent = np.array(params['extent_mesh']) - np.array(params['root_mesh'])
+  size = np.array(params['shape_mesh'], dtype=int)
+  ninterp = int(args.ninterp*params['order'])
+  cart = np.linspace(0.,extent[0],num=ninterp,endpoint=False)/size[0]
+  norder = input_file.norder
+  trans = None
+
+  while True:
+    tic()
+    with lock:
+      nelm, pos, vel, t = input_file.get_elem(args.block)
+    toc('read')
+    if nelm < 1:
+      return ans
+
+    if trans == None:
+      gll  = pos[0:norder,0,0] - pos[0,0,0]
+      trans = lagrange_matrix(gll,cart)
+      if args.verbose:
+        print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
+
+    #pos_trans = transform_position_elements(pos, trans, cart)
+    # pos[0,:,:] is invariant under transform, and it is all we need
+    pos_trans = pos[0,:,:]
+    #pos = None; gc.collect()
+
+    # transform all the fields at once
+    hunk = np.concatenate((t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
+    hunk_trans = transform_field_elements(hunk, trans, cart)
+    t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
+    #t, vel = None, None; gc.collect()
+
+    # Save some results pre-renorm
+    max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
+    ans['TMax']   = float(max(ans['TMax'], np.amax(t_trans)))
+    ans['TMin']   = float(min(ans['TMin'], np.amin(t_trans)))
+    ans['UAbs']   = float(max(ans['UAbs'], max_speed))
+    ans['dx_max'] = float(max(ans['dx_max'], np.max(gll[1:] - gll[0:-1])))
+
+    # Renorm t -> [0,1]
+    tic()
+    Tt_low = -params['atwood']/2.; Tt_high = params['atwood']/2.
+    t_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
+    t_trans = np.maximum(t_trans, 0.)
+    t_trans = np.minimum(t_trans, 1.)
+    toc('renorm')
+
+    # stream the elements into the grid structure
+    data.add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
+    #pos_trans, t_trans, ux_trans, uy_trans, uz_trans = None, None, None, None, None; gc.collect() 
+
 def process(job):  
   # Split the arguments
   args = job[0]
@@ -21,6 +90,10 @@ def process(job):
   from nek import NekFile
   from tictoc import tic, toc
 
+  from multiprocessing.dummy import Pool
+  from threading import Lock
+  import time as timee
+
   ans = {}
   # Load params
   with open("{:s}.json".format(args.name), 'r') as f:
@@ -41,6 +114,7 @@ def process(job):
   ans['TMax']   = 0.
   ans['TMin']   = 0.
   ans['UAbs']   = 0.
+  ans['dx_max'] = 0.
   data = Grid(args.ninterp * params['order'], 
               params['root_mesh'], 
               params['extent_mesh'], 
@@ -53,51 +127,24 @@ def process(job):
 
   time = input_file.time
   norder = input_file.norder
-  while True:
-    tic()
-    nelm, pos, vel, t = input_file.get_elem(args.block)
-    toc('read')
-    if nelm < 1:
-      break
 
-    if trans == None:
-      gll  = pos[0:norder,0,0] - pos[0,0,0]
-      dx_max = np.max(gll[1:] - gll[0:-1])
-      trans = lagrange_matrix(gll,cart)
-      if args.verbose:
-        print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
+  nthread = 2
+  lock = Lock()
+  targs = [lock, input_file, params, data]
+  jobs  = [targs]*args.thread
 
-
-    #pos_trans = transform_position_elements(pos, trans, cart)
-    # pos[0,:,:] is invariant under transform, and it is all we need
-    pos_trans = pos[0,:,:]
-    pos = None; gc.collect()
-
-    # transform all the fields at once
-    hunk = np.concatenate((t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
-    hunk_trans = transform_field_elements(hunk, trans, cart)
-    t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
-    t, vel = None, None; gc.collect()
-
-    # Save some results pre-renorm
-    max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
-    ans['TMax']   = float(max(ans['TMax'], np.amax(t_trans)))
-    ans['TMin']   = float(min(ans['TMin'], np.amin(t_trans)))
-    ans['UAbs']   = float(max(ans['UAbs'], max_speed))
-
-    # Renorm t -> [0,1]
-    tic()
-    Tt_low = -params['atwood']/2.; Tt_high = params['atwood']/2.
-    t_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
-    t_trans = np.maximum(t_trans, 0.)
-    t_trans = np.minimum(t_trans, 1.)
-    toc('renorm')
-
-    # stream the elements into the grid structure
-    data.add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
-    pos_trans, t_trans, ux_trans, uy_trans, uz_trans = None, None, None, None, None; gc.collect() 
+  ttime = timee.time()
+  with Pool(args.thread) as pool:
+    results = pool.map(tprocess, jobs, chunksize = 1)
+    for r in results:
+      ans['TMax']   = float(max(ans['TMax'], r['TMax']))
+      ans['TMin']   = float(min(ans['TMin'], r['TMin']))
+      ans['UAbs']   = float(max(ans['UAbs'], r['UAbs']))
+      ans['dx_max'] = float(max(ans['dx_max'], r['dx_max'])) 
+  print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, nthread))
 
   input_file.close()
+  
 
   # finish box counting
   if data.interface != None:
@@ -108,8 +155,8 @@ def process(job):
   
   # more results
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
-  ans['PeCell'] = ans['UAbs']*dx_max/params['conductivity']
-  ans['ReCell'] = ans['UAbs']*dx_max/params['viscosity']
+  ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
+  ans['ReCell'] = ans['UAbs']*ans['dx_max']/params['viscosity']
   if args.verbose:
     print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
     print("Max speed: {:f}".format(ans['UAbs']))
@@ -201,6 +248,7 @@ parser.add_argument("-m",  "--mixing_cdf",  help="Plot CDF of box temps", action
 parser.add_argument("-F",  "--Fourier",     help="Plot Fourier spectrum in x-y", action="store_true")
 parser.add_argument("-b",  "--boxes",       help="Compute box covering numbers", action="store_true")
 parser.add_argument("-nb", "--block",       help="Number of elements to process at a time", type=int, default=65536)
+parser.add_argument("-nt", "--thread",       help="Number of threads to spawn", type=int, default=1)
 parser.add_argument("-d",  "--display",     help="Display plots with X", action="store_true", default=False)
 parser.add_argument("-v",  "--verbose",     help="Should I be really verbose, that is wordy?", action="store_true", default=False)
 args = parser.parse_args()
