@@ -137,3 +137,8 @@ def compute_index(root, shape):
   shape = np.array(shape / 2, dtype = int)
   return ind * power + compute_index(np.mod(root,shape), shape)
 
+def compute_alpha(h, t):
+  v = [(h[i+1] - h[i-1])/(float(t[i+1])-float(t[i-1])) for i in range(1,len(h)-1)]
+  v.insert(0,0.); v.append(0.)
+  alpha = [v[i]*v[i]/(4*h[i]) for i in range(len(v))]
+  return alpha
