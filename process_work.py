@@ -15,7 +15,7 @@ def process(job):
   from my_utils import transform_field_elements
   from my_utils import transform_position_elements
   from Grid import mixing_zone, energy_budget
-  from Grid import plot_slice, plot_spectrum, plot_dist
+  from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim
   from nek import NekFile
   from tictoc import tic, toc
   from thread_work import tprocess
@@ -73,15 +73,8 @@ def process(job):
   print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, args.thread))
 
   input_file.close()
-  
 
-  # finish box counting
-  if data.interface != None:
-    for i in range(int(np.log2(data.order)), int(np.log2(np.min(data.shape[0])))):
-      data.interface = np.reshape(data.interface, (-1,8))
-      data.interface = np.sum(data.interface, axis=1, dtype=np.bool_)
-      data.boxes[i] = np.sum(data.interface) 
-  
+   
   # more results
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
@@ -117,6 +110,9 @@ def process(job):
     toc('contour')
 
   tic()
+  if data.box_dist != None:
+    plot_dim(data, fname = "{:s}{:05d}-dim.png".format(args.name, frame)) 
+
   if args.Fourier:
     plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
                   slices = [.5],

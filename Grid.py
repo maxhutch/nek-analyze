@@ -12,8 +12,8 @@ class Grid:
     import numpy as np
     from threading import Lock
     self.order = order 
-    self.origin = origin
-    self.corner = corner 
+    self.origin = np.array(origin)
+    self.corner = np.array(corner)
     self.shape = shape 
     self.dx = (self.corner[0] - self.origin[0])/(self.shape[0])
     self.f, self.ux, self.uy, self.uz = None, None, None, None
@@ -28,11 +28,16 @@ class Grid:
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
-    self.boxes = None
-    self.interface = None
+    self.box_pos  = None
+    self.box_dist = None
+    self.nbox = 100
     if boxes:
-      self.boxes = np.zeros(int(np.log2(np.min(self.shape))))
-      self.interface = np.zeros(np.prod(self.shape / self.order), dtype=np.bool_)
+      self.box_pos  = (np.random.randn(3, self.nbox) + 3.)/6.
+      self.box_pos[0,:] = self.box_pos[0,:] * (self.corner[0] - self.origin[0]) + self.origin[0]
+      self.box_pos[1,:] = self.box_pos[1,:] * (self.corner[1] - self.origin[1]) + self.origin[1]
+      self.box_pos[2,:] = self.box_pos[2,:] * (self.corner[2] - self.origin[2]) + self.origin[2]
+      self.box_dist = np.ones((2, self.nbox), order = 'F') * np.linalg.norm(self.corner - self.origin)
+      
     self.lock = Lock()
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
@@ -61,33 +66,26 @@ class Grid:
       self.pdf += pdf_partial
     toc('aggregate')
 
-    if self.boxes != None:
+    if self.box_pos != None:
       tic()
-      f_tmp  = np.reshape(f_elm, (self.order,self.order,self.order*f_elm.shape[1]), order='F')
-      fs = np.sign(f_tmp-0.5)
-      X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order*f_elm.shape[1]].astype(int), 3, axis=0)
-      for j in range(1,int(np.log2(self.order))+1):
-        fac = int(2**j)
-        regions = np.array((X/fac), dtype=int) \
-                + np.array((Y/fac), dtype=int) * (self.order/fac) \
-                + np.array((Z/fac), dtype=int) * (self.order/fac)**2 
-        N = (self.order/fac)**3 * f_elm.shape[1]
-        interface = np.multiply(
-                     measurements.minimum(fs, labels=regions, index=np.arange(N)), 
-                     measurements.maximum(fs, labels=regions, index=np.arange(N))
-                    ) 
-        self.boxes[j-1] += (N - np.sum(interface))/2
+      fs= np.sign(np.reshape(f_elm, (self.order,self.order,self.order,f_elm.shape[1]), order='F') - 0.5)
+      X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order]*self.dx, 3, axis=0)
+      for j in range(self.box_pos.shape[1]):
+        pad = self.order*self.dx*np.sqrt(3.) 
+        for i in range(pos_elm.shape[0]):
+          if pad + min(self.box_dist[0,j], self.box_dist[1,j]) < np.linalg.norm(self.box_pos[:,j] - pos_elm[i,:]):
+            continue 
+          dist = np.sqrt(
+                         np.square(pos_elm[i,0] + X - self.box_pos[0,j]) 
+                       + np.square(pos_elm[i,1] + Y - self.box_pos[1,j]) 
+                       + np.square(pos_elm[i,2] + Z - self.box_pos[2,j]) 
+                        )
+          self.box_dist[0,j] = min(self.box_dist[0,j], np.amin(np.where(fs[:,:,:,i]>0, dist, np.inf)))
+          self.box_dist[1,j] = min(self.box_dist[1,j], np.amin(np.where(fs[:,:,:,i]<0, dist, np.inf)))
       toc('box1')
 
     for i in range(pos_elm.shape[0]):
       root = np.array((pos_elm[i,:] - self.origin)/self.dx + .5, dtype=int)
-      if self.interface != None:
-        foo = False
-        if np.max(f_elm[:,i]-.5) * np.min(f_elm[:,i]-.5) < 0:
-          foo = True
-        key = np.array([2,2,2], dtype=int)
-        self.interface[compute_index((root / self.order) + key, self.shape/self.order)] = foo
-
       yoff = self.yind - root[1]
       zoff = self.zind - root[2]
       f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
@@ -202,6 +200,35 @@ def plot_dist(grid, fname = None):
   ax1.bar(edges[:-1], cdf, width=(edges[1]-edges[0]))
   plt.xlim([-.1,1.1])
   plt.ylim([0,1])
+  if fname != None: 
+    plt.savefig(fname)
+
+def plot_dim(grid, fname = None):
+  import matplotlib.pyplot as plt
+  import numpy as np
+  plt.figure()
+  ax1 = plt.subplot(1,1,1)
+  grid.box_dist *= 1./(np.linalg.norm(grid.corner - grid.origin))
+  n, bins, patches = ax1.hist(np.maximum(grid.box_dist[0,:], grid.box_dist[1,:]),
+                              bins=grid.nbox,
+                              cumulative=True,
+                              log=True,
+                              normed = True,
+                              histtype = 'stepfilled'
+                             )
+  xs = np.array([1./grid.shape[0], 1./3.])
+  for i in range(-10, 11):
+    ax1.plot(xs, xs*(2.**i), 'k--')
+#  for i in range(-10, 11):
+#    ax1.plot(xs, np.square(xs)*(2.**i), 'r--')
+#  for i in range(-10, 11):
+#    ax1.plot(xs, np.multiply(np.square(xs), xs)*(2.**i), 'g--')
+  plt.xlim([bins[0], 1.])
+  plt.ylim([n[0], 1.])
+  plt.vlines(1./3., 1./grid.shape[0], 1.)
+  plt.xscale('log')
+  plt.yscale('log')
+
   if fname != None: 
     plt.savefig(fname)
 
