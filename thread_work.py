@@ -41,7 +41,7 @@ def tprocess(job):
 
     #pos_trans = transform_position_elements(pos, trans, cart)
     # pos[0,:,:] is invariant under transform, and it is all we need
-    pos_trans = pos[0,:,:]
+    pos_trans = np.transpose(pos[0,:,:])
     #pos = None; gc.collect()
 
     # transform all the fields at once

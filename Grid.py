@@ -30,7 +30,7 @@ class Grid:
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
     self.box_pos  = None
     self.box_dist = None
-    self.nbox = 100
+    self.nbox = 1000
     if boxes:
       self.box_pos  = (np.random.randn(3, self.nbox) + 3.)/6.
       self.box_pos[0,:] = self.box_pos[0,:] * (self.corner[0] - self.origin[0]) + self.origin[0]
@@ -45,14 +45,8 @@ class Grid:
     import numpy.linalg as lin
     import scipy.ndimage.measurements as measurements
     from my_utils import compute_index
+    import time as timer
     from tictoc import tic, toc
-    '''
-    if self.f == None:
-      self.f  = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
-      self.ux = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
-      self.uy = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
-      self.uz = np.zeros((self.shape[0], self.shape[1], self.shape[2]), order='F', dtype=np.float64)
-    '''
 
     tic()
     tmp = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
@@ -70,22 +64,57 @@ class Grid:
       tic()
       fs= np.sign(np.reshape(f_elm, (self.order,self.order,self.order,f_elm.shape[1]), order='F') - 0.5)
       X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order]*self.dx, 3, axis=0)
+      pad = self.order*self.dx*np.sqrt(3.) 
+      toc('prework')
+      sort_time = 0.
+      search_time = 0.
       for j in range(self.box_pos.shape[1]):
-        pad = self.order*self.dx*np.sqrt(3.) 
-        for i in range(pos_elm.shape[0]):
-          if pad + min(self.box_dist[0,j], self.box_dist[1,j]) < np.linalg.norm(self.box_pos[:,j] - pos_elm[i,:]):
-            continue 
-          dist = np.sqrt(
-                         np.square(pos_elm[i,0] + X - self.box_pos[0,j]) 
-                       + np.square(pos_elm[i,1] + Y - self.box_pos[1,j]) 
-                       + np.square(pos_elm[i,2] + Z - self.box_pos[2,j]) 
-                        )
-          self.box_dist[0,j] = min(self.box_dist[0,j], np.amin(np.where(fs[:,:,:,i]>0, dist, np.inf)))
-          self.box_dist[1,j] = min(self.box_dist[1,j], np.amin(np.where(fs[:,:,:,i]<0, dist, np.inf)))
-      toc('box1')
+        sort_time -= timer.time()
+        elm_dists = np.linalg.norm(self.box_pos[:,j,np.newaxis] - pos_elm[:,:], axis=0)
+        #sorted_indices = np.argsort(elm_dists)
+        nsort = 10
+        sorted_indices = np.argpartition(elm_dists, np.arange(nsort))[:nsort]
+        sort_time += timer.time()
 
-    for i in range(pos_elm.shape[0]):
-      root = np.array((pos_elm[i,:] - self.origin)/self.dx + .5, dtype=int)
+        search_time -= timer.time()
+        done = 0
+        for i in sorted_indices:
+          if max(self.box_dist[0,j], self.box_dist[1,j]) < elm_dists[i] - pad:
+            done = 1
+            break 
+          dist = np.sqrt(
+                         np.square(pos_elm[0,i] + X - self.box_pos[0,j]) 
+                       + np.square(pos_elm[1,i] + Y - self.box_pos[1,j]) 
+                       + np.square(pos_elm[2,i] + Z - self.box_pos[2,j]) 
+                        )
+          tmp1 = np.amin(np.where(fs[:,:,:,i]>0, dist, np.inf))
+          tmp2 = np.amin(np.where(fs[:,:,:,i]<0, dist, np.inf))
+          with self.lock:
+            self.box_dist[0,j] = min(self.box_dist[0,j], tmp1) 
+            self.box_dist[1,j] = min(self.box_dist[1,j], tmp2) 
+        sorted_indices = []
+        if done == 0:
+          sorted_indices = np.argsort(elm_dists)[nsort:]
+        for i in sorted_indices:
+          if max(self.box_dist[0,j], self.box_dist[1,j]) < elm_dists[i] - pad:
+            done = 1
+            break 
+          dist = np.sqrt(
+                         np.square(pos_elm[0,i] + X - self.box_pos[0,j]) 
+                       + np.square(pos_elm[1,i] + Y - self.box_pos[1,j]) 
+                       + np.square(pos_elm[2,i] + Z - self.box_pos[2,j]) 
+                        )
+          tmp1 = np.amin(np.where(fs[:,:,:,i]>0, dist, np.inf))
+          tmp2 = np.amin(np.where(fs[:,:,:,i]<0, dist, np.inf))
+          with self.lock:
+            self.box_dist[0,j] = min(self.box_dist[0,j], tmp1) 
+            self.box_dist[1,j] = min(self.box_dist[1,j], tmp2) 
+        search_time += timer.time()
+      print("prebox time {:f}".format(sort_time))
+      print("box time {:f}".format(search_time))
+
+    for i in range(pos_elm.shape[1]):
+      root = np.array((pos_elm[:,i] - self.origin)/self.dx + .5, dtype=int)
       yoff = self.yind - root[1]
       zoff = self.zind - root[2]
       f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
@@ -108,26 +137,6 @@ class Grid:
                      root[1]:root[1]+self.order, 2] = uz_tmp[:,:,zoff]
         self.dotzsliceu[root[0]:root[0]+self.order, 
                         root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
-        '''
-        self.f[root[0]:root[0]+self.order,
-               root[1]:root[1]+self.order,
-               root[2]:root[2]+self.order] = f_tmp
-        '''
-        '''
-        self.ux[root[0]:root[0]+self.order,
-                root[1]:root[1]+self.order,
-                root[2]:root[2]+self.order] = u_tmp
-        '''
-        '''
-        self.uy[root[0]:root[0]+self.order,
-                root[1]:root[1]+self.order,
-                root[2]:root[2]+self.order] = u_tmp 
-        '''
-        '''
-        self.uz[root[0]:root[0]+self.order,
-                root[1]:root[1]+self.order,
-                root[2]:root[2]+self.order] = u_tmp
-        '''
  
   def add_pos(self):
     import numpy as np
@@ -216,15 +225,17 @@ def plot_dim(grid, fname = None):
                               normed = True,
                               histtype = 'stepfilled'
                              )
-  xs = np.array([1./grid.shape[0], 1./3.])
+  xs = np.array([bins[0]/2., 1./3.])
   for i in range(-10, 11):
     ax1.plot(xs, xs*(2.**i), 'k--')
 #  for i in range(-10, 11):
 #    ax1.plot(xs, np.square(xs)*(2.**i), 'r--')
 #  for i in range(-10, 11):
 #    ax1.plot(xs, np.multiply(np.square(xs), xs)*(2.**i), 'g--')
-  plt.xlim([bins[0], 1.])
-  plt.ylim([n[0], 1.])
+  #plt.xlim([bins[0]/2., 1.])
+  plt.xlim([0.001, 1.])
+  #plt.ylim([n[0]/2., 1.])
+  plt.ylim([0.1, 1.])
   plt.vlines(1./3., 1./grid.shape[0], 1.)
   plt.xscale('log')
   plt.yscale('log')
