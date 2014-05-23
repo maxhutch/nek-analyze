@@ -76,6 +76,7 @@ if args.series:
   from my_utils import find_root
   PeCs  = np.array([d['PeCell'] for d in vals])
   TMaxs = np.array([d['TAbs']   for d in vals])
+  Totals = np.array([d['Total']   for d in vals])
   for i in range(TMaxs.shape[0]):
     if TMaxs[i] *2./params['atwood'] > 1.:
       print("Simulation went unstable at t={:f}, PeCell={:f}+/-{:f}".format(times[i], (PeCs[i]+PeCs[i-1])/2, (PeCs[i]-PeCs[i-1])/2))
@@ -86,6 +87,7 @@ if args.series:
   plt.xlabel('Time (s)')
   ax1.plot(times, PeCs,                      label='Cell Peclet')
   ax1.plot(times, TMaxs*2./params['atwood'], label='max(T)/max(T0)')
+  ax1.plot(times, Totals/np.max(np.abs(Totals)), label='avg(T)/max(avg(T))')
   plt.legend(loc=2)
   plt.savefig("{:s}-stability.png".format(args.name))
 
@@ -137,11 +139,14 @@ if args.series:
     plt.savefig("{:s}-h.png".format(args.name))
 
     plt.figure()
-    Ps = [d['P'] for d in vals]
-    Ks = [d['K'] for d in vals]
+    Ps = np.array([d['P'] for d in vals])
+    Ks = np.array([d['K'] for d in vals])
     ax1 = plt.subplot(1,1,1)
-    ax1.plot(times, np.divide(Ps, np.square(hs_cabot)), label='Potential')
-    ax1.plot(times, np.divide(Ks, np.square(hs_cabot)), label='Kinetic')
+    budget = (params['atwood'] * params['g'] * np.square(hs_cabot) * 
+             (params["extent_mesh"][0] - params["root_mesh"][0]) *
+             (params["extent_mesh"][1] - params["root_mesh"][1]) / 2.)
+    ax1.plot(times, np.divide(Ps-Ps[0], budget), label='Potential')
+    ax1.plot(times, np.divide(Ks      , budget), label='Kinetic')
     plt.xlabel('Time (s)')
     plt.ylabel('Energy / h^2')
     plt.legend(loc=2)

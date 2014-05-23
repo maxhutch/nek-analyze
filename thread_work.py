@@ -39,16 +39,13 @@ def tprocess(job):
       if args.verbose:
         print("Interpolating\n" + str(gll) + "\nto\n" + str(cart))
 
-    #pos_trans = transform_position_elements(pos, trans, cart)
     # pos[0,:,:] is invariant under transform, and it is all we need
     pos_trans = np.transpose(pos[0,:,:])
-    #pos = None; gc.collect()
 
     # transform all the fields at once
     hunk = np.concatenate((t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
     hunk_trans = transform_field_elements(hunk, trans, cart)
     t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
-    #t, vel = None, None; gc.collect()
 
     # Save some results pre-renorm
     max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
@@ -67,5 +64,5 @@ def tprocess(job):
 
     # stream the elements into the grid structure
     data.add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
-    #pos_trans, t_trans, ux_trans, uy_trans, uz_trans = None, None, None, None, None; gc.collect() 
 
+  return ans

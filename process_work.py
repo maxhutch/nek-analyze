@@ -55,11 +55,7 @@ def process(job):
   fname = "{:s}0.f{:05d}".format(args.name, frame)
   input_file = NekFile(fname)
 
-  time = input_file.time
-  norder = input_file.norder
-
-  lock = Lock()
-  targs = [lock, input_file, params, data, args]
+  targs = [Lock(), input_file, params, data, args]
   jobs  = [targs]*args.thread
 
   ttime = timee.time()
@@ -130,7 +126,7 @@ def process(job):
 
   if args.mixing_zone:
     tic()
-    ans['h_cabot'], ans['h_visual'], ans['Xi'] = mixing_zone(data)
+    ans['h_cabot'], ans['h_visual'], ans['Xi'], ans['Total'] = mixing_zone(data)
     toc('mixing_zone')
 
     if not args.series:
@@ -151,5 +147,5 @@ def process(job):
     plt.show()
   plt.close('all')
 
-  return (str(time), ans)
+  return (str(input_file.time), ans)
 

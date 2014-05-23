@@ -11,23 +11,34 @@ class Grid:
   def __init__(self, order, origin, corner, shape, boxes = False):
     import numpy as np
     from threading import Lock
+    # Thread lock    
+    self.lock = Lock()
+
+    # Basic mesh info: do not change 
     self.order = order 
     self.origin = np.array(origin)
     self.corner = np.array(corner)
     self.shape = shape 
     self.dx = (self.corner[0] - self.origin[0])/(self.shape[0])
     self.f, self.ux, self.uy, self.uz = None, None, None, None
+
+    # Aggregate quantities with inits
     self.f_xy = np.zeros(self.shape[2])
-    self.f_m  = 0.
-    self.v2   = 0.
+    self.f_m      = 0.
+    self.f_total  = 0.
+    self.v2       = 0.
     self.nbins = 1000
     self.pdf   = np.zeros(self.nbins)
+
+    # Slice information
     self.yind    = int(self.shape[1]/2. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.zind    = int(self.shape[2]/2. + .5)
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
+
+    # Fractal dimension stuff
     self.box_pos  = None
     self.box_dist = None
     self.nbox = 1000
@@ -36,9 +47,7 @@ class Grid:
       self.box_pos[0,:] = self.box_pos[0,:] * (self.corner[0] - self.origin[0]) + self.origin[0]
       self.box_pos[1,:] = self.box_pos[1,:] * (self.corner[1] - self.origin[1]) + self.origin[1]
       self.box_pos[2,:] = self.box_pos[2,:] * (self.corner[2] - self.origin[2]) + self.origin[2]
-      self.box_dist = np.ones((2, self.nbox), order = 'F') * np.linalg.norm(self.corner - self.origin)
-      
-    self.lock = Lock()
+      self.box_dist = np.ones((2, self.nbox), order = 'F') * np.linalg.norm(self.corner - self.origin) 
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
@@ -48,7 +57,11 @@ class Grid:
     import time as timer
     from tictoc import tic, toc
 
+    # First, compute aggregate quantities like total kinetic energy
     tic()
+    tmp = np.sum(f_elm)
+    with self.lock:
+      self.f_total += tmp
     tmp = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
     with self.lock:
       self.f_m += tmp
@@ -60,6 +73,33 @@ class Grid:
       self.pdf += pdf_partial
     toc('aggregate')
 
+    # element-wise operations and slices
+    for i in range(pos_elm.shape[1]):
+      root = np.array((pos_elm[:,i] - self.origin)/self.dx + .5, dtype=int)
+      yoff = self.yind - root[1]
+      zoff = self.zind - root[2]
+      f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+
+      self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
+      if yoff >= 0 and yoff < self.order:
+        self.yslice[root[0]:root[0]+self.order, 
+                    root[2]:root[2]+self.order] = f_tmp[:,yoff,:]
+      if zoff >= 0 and zoff < self.order:
+        ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
+        uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
+        uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
+        self.zslice[root[0]:root[0]+self.order, 
+                    root[1]:root[1]+self.order] = f_tmp[:,:,zoff]
+        self.zsliceu[root[0]:root[0]+self.order, 
+                     root[1]:root[1]+self.order, 0] = ux_tmp[:,:,zoff]
+        self.zsliceu[root[0]:root[0]+self.order, 
+                     root[1]:root[1]+self.order, 1] = uy_tmp[:,:,zoff]
+        self.zsliceu[root[0]:root[0]+self.order, 
+                     root[1]:root[1]+self.order, 2] = uz_tmp[:,:,zoff]
+        self.dotzsliceu[root[0]:root[0]+self.order, 
+                        root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
+
+    # box counting
     if self.box_pos != None:
       tic()
       fs= np.sign(np.reshape(f_elm, (self.order,self.order,self.order,f_elm.shape[1]), order='F') - 0.5)
@@ -112,76 +152,6 @@ class Grid:
         search_time += timer.time()
       print("prebox time {:f}".format(sort_time))
       print("box time {:f}".format(search_time))
-
-    for i in range(pos_elm.shape[1]):
-      root = np.array((pos_elm[:,i] - self.origin)/self.dx + .5, dtype=int)
-      yoff = self.yind - root[1]
-      zoff = self.zind - root[2]
-      f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
-
-      self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
-      if yoff >= 0 and yoff < self.order:
-        self.yslice[root[0]:root[0]+self.order, 
-                    root[2]:root[2]+self.order] = f_tmp[:,yoff,:]
-      if zoff >= 0 and zoff < self.order:
-        ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
-        uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
-        uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
-        self.zslice[root[0]:root[0]+self.order, 
-                    root[1]:root[1]+self.order] = f_tmp[:,:,zoff]
-        self.zsliceu[root[0]:root[0]+self.order, 
-                     root[1]:root[1]+self.order, 0] = ux_tmp[:,:,zoff]
-        self.zsliceu[root[0]:root[0]+self.order, 
-                     root[1]:root[1]+self.order, 1] = uy_tmp[:,:,zoff]
-        self.zsliceu[root[0]:root[0]+self.order, 
-                     root[1]:root[1]+self.order, 2] = uz_tmp[:,:,zoff]
-        self.dotzsliceu[root[0]:root[0]+self.order, 
-                        root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
- 
-  def add_pos(self):
-    import numpy as np
-    ''' position grid '''
-    self.x = np.zeros((self.shape[0], self.shape[1], self.shape[2], 3), order='F', dtype=np.float64)
-    for i in range(self.shape[0]):
-      self.x[i,:,:,0] = self.dx*i + self.origin[0]
-    for i in range(self.shape[1]):
-      self.x[:,i,:,1] = self.dx*i + self.origin[1]
-    for i in range(self.shape[2]):
-      self.x[:,:,i,2] = self.dx*i + self.origin[2]
-
-def covering_number(grid, N):
-  import numpy as np
-  N = int(np.min(grid.shape / N))
-  nshift = int(N/2)+1
-  ans = grid.f.size
-  for ii in range(0,N,nshift):
-   for jj in range(0,N,nshift):
-    for kk in range(0,N,nshift):
-     counter = 0
-     for i in range(ii,grid.shape[0],N): 
-      for j in range(jj,grid.shape[1],N): 
-       for k in range(kk,grid.shape[2],N): 
-        box = grid.f[i:i+N+1,j:j+N+1,k:k+N+1]
-        if np.max(box) * np.min(box) <= 0.:
-          counter+=1
-     ans = min(ans, counter)
-  return ans
-
-def fractal_dimension(grid, nsample = 25, base = 1.2):
-  import numpy as np
-  from scipy.stats import linregress
-  cover_number = []
-  nbox = []
-  for i in range(1,nsample):
-    n = int(base**i)
-    if len(nbox) > 0 and n == nbox[-1]:
-      continue
-    nbox.append(n)
-    cover_number.append(covering_number(grid, n))
-  nbox = np.array(nbox)
-  cover_number = np.array(cover_number)
-  ans = linregress(np.log(nbox), np.log(cover_number))
-  return ans[0]
 
 def plot_slice(grid, fname = None):
   import matplotlib.pyplot as plt
@@ -343,8 +313,9 @@ def mixing_zone(grid, thresh = .01):
              - find_root(zs, f_xy, y0 = 1-thresh)) / 2.
 
   X = float(grid.f_m/(h*grid.shape[0]*grid.shape[1]))
+  Y = float(grid.f_total/(np.prod(grid.shape)))
 
-  return h_cabot, h_visual, X
+  return h_cabot, h_visual, X, Y
 
 def energy_budget(grid):
   import numpy as np
