@@ -142,3 +142,10 @@ def compute_alpha(h, t):
   v.insert(0,0.); v.append(0.)
   alpha = [v[i]*v[i]/(4*h[i]) for i in range(len(v))]
   return alpha
+
+def compute_reynolds(h, t):
+  v = [(h[i+1] - h[i-1])/(float(t[i+1])-float(t[i-1])) for i in range(1,len(h)-1)]
+  v.insert(0,0.); v.append(0.)
+  alpha = [v[i]*h[i] for i in range(len(v))]
+  return alpha
+

@@ -108,7 +108,7 @@ if args.series:
 
   # mixing zone analysis
   if args.mixing_zone: 
-    from my_utils import compute_alpha
+    from my_utils import compute_alpha, compute_reynolds
     hs_cabot = [d['h_cabot'] for d in vals]
     alpha_cabot = np.array(compute_alpha(hs_cabot, times)) / (params['atwood']*params['g'])
 
@@ -116,14 +116,14 @@ if args.series:
     alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
 
     plt.figure()
-    ax1 = plt.subplot(1,3,1)
+    ax1 = plt.subplot(1,4,1)
     plt.xlabel('Time (s)')
     plt.ylabel('h (m)')
-    plt.ylim([0., max(hs_visual)])
+    plt.ylim([0., max(max(hs_visual), max(hs_cabot))])
     ax1.plot(times, hs_cabot, times, hs_visual)
 
-    ax2 = plt.subplot(1,3,2)
-    plt.ylim([0., max(alpha_visual)])
+    ax2 = plt.subplot(1,4,2)
+    plt.ylim([0., max(np.max(alpha_visual),np.max(alpha_cabot))])
     ax2.plot(times, alpha_cabot, label='Cabot')
     ax2.plot(times, alpha_visual, label='Visual')
     plt.legend(loc=2)
@@ -131,12 +131,21 @@ if args.series:
     plt.ylabel('alpha')
 
     Xs = [d['Xi'] for d in vals]
-    ax3 = plt.subplot(1,3,3)
+    ax3 = plt.subplot(1,4,3)
     plt.ylim([0.,1.])
     ax3.plot(times, Xs)
     plt.xlabel('Time (s)')
     plt.ylabel('Xi')
+
+    Re_visual = np.array(compute_reynolds(hs_visual, times)) / (params['viscosity'])
+    ax4 = plt.subplot(1,4,4)
+    ax4.plot(times, Re_visual)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Re')
+
     plt.savefig("{:s}-h.png".format(args.name))
+
+
 
     plt.figure()
     Ps = np.array([d['P'] for d in vals])

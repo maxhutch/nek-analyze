@@ -230,7 +230,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
 
   modes_x = np.fft.fftfreq( grid.shape[0], grid.dx)
   modes_y = np.fft.rfftfreq(grid.shape[1], grid.dx)
-  modes = np.zeros((modes_x.size, modes_y.size))
+  modes = np.zeros((modes_x.size, modes_y.size), order='F')
   for i in range(modes_x.size):
     for j in range(modes_y.size):
       modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
@@ -241,6 +241,12 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
 
     # compute Taylor microscale
     spectrum = np.square(np.abs(np.fft.rfft2(grid.zslice[:,:])) / (grid.shape[0]*grid.shape[1]))
+    '''
+    for i in range(modes_x.size):
+     for j in range(modes_y.size):
+      if spectrum[i,j] > 1e-10:
+        print("Modes {:f} and {:f} has amplitude {:e}".format(modes_x[i], modes_y[j], spectrum[i,j]))
+    '''
     ax1.plot(modes.ravel(), .25 * Atwood * g * spectrum.ravel(), 'bo', label='P')
 
     spectrum_uz = np.square(np.abs(np.fft.rfft2(grid.zsliceu[:,:,2]))/ (grid.shape[0]*grid.shape[1]))
@@ -272,7 +278,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
   ys = xs**(-5./3.) 
   for i in range(9):
     ax1.plot(xs, 10**(1.-2.*i) * ys, 'k--')
-
+  ax1.plot(xs, .25 * Atwood * g * np.square(0.1 / xs), 'y-')
   if fname != None:
     plt.savefig(fname)
 
