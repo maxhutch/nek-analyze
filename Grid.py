@@ -182,6 +182,23 @@ def plot_dist(grid, fname = None):
   if fname != None: 
     plt.savefig(fname)
 
+def plot_prof(grid, fname = None, line = None):
+  import matplotlib.pyplot as plt
+  import numpy as np
+
+  fig = plt.figure()
+  ax1 = plt.subplot(1,1,1)
+  plt.title('Density profile')
+  zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)
+  plt.plot(zs , grid.f_xy / (grid.shape[0]*grid.shape[1]) )
+  if line != None:
+    plt.plot(zs, line*zs + .5)
+  plt.ylim([0,1])
+  plt.xlabel('z')
+  plt.ylabel('<f>_{x,y}')
+  if fname != None:
+    plt.savefig(fname)
+
 def plot_dim(grid, fname = None):
   import matplotlib.pyplot as plt
   import numpy as np
@@ -314,14 +331,18 @@ def mixing_zone(grid, thresh = .01):
   h_cabot = (h * L / f_xy.shape[0])
 
   # visual h
+  spread = max(int(h_cabot * f_xy.shape[0]/ (4.*L)), 1)
   zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)
+  p = np.polyfit(zs[  grid.shape[2]/2-spread:grid.shape[2]/2 + spread],
+                 f_xy[grid.shape[2]/2-spread:grid.shape[2]/2 + spread], 1)
+  h_fit = abs((1.)/(2. * p[0]))
   h_visual = ( find_root(zs, f_xy, y0 = thresh) 
              - find_root(zs, f_xy, y0 = 1-thresh)) / 2.
 
   X = float(grid.f_m/(h*grid.shape[0]*grid.shape[1]))
   Y = float(grid.f_total/(np.prod(grid.shape)))
 
-  return h_cabot, h_visual, X, Y
+  return h_cabot, h_visual, h_fit, X, Y
 
 def energy_budget(grid):
   import numpy as np

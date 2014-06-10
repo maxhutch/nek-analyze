@@ -104,6 +104,9 @@ if args.series:
   if args.Fourier:
     call("rm -f "+args.name+"-spectrum.mkv", shell=True)
     call("avconv -f image2 -i "+args.name+"%05d-spectrum.png -c:v h264 "+args.name+"-spectrum.mkv", shell=True, stdout = foo, stderr = foo) 
+  if args.mixing_zone: 
+    call("rm -f "+args.name+"-prof.mkv", shell=True)
+    call("avconv -f image2 -i "+args.name+"%05d-prof.png -c:v h264 "+args.name+"-prof.mkv", shell=True, stdout = foo, stderr = foo) 
   foo.close()
 
   # mixing zone analysis
@@ -115,17 +118,23 @@ if args.series:
     hs_visual = [d['h_visual'] for d in vals]
     alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
 
+    hs_fit = [d['h_fit'] for d in vals]
+    alpha_fit = np.array(compute_alpha(hs_fit, times)) / (params['atwood']*params['g'])
+
+
+
     plt.figure()
     ax1 = plt.subplot(1,4,1)
     plt.xlabel('Time (s)')
     plt.ylabel('h (m)')
-    plt.ylim([0., max(max(hs_visual), max(hs_cabot))])
-    ax1.plot(times, hs_cabot, times, hs_visual)
+    plt.ylim([0., max(max(hs_visual), max(hs_cabot), max(hs_fit))])
+    ax1.plot(times, hs_cabot, times, hs_visual, times, hs_fit)
 
     ax2 = plt.subplot(1,4,2)
-    plt.ylim([0., max(np.max(alpha_visual),np.max(alpha_cabot))])
+    plt.ylim([0., max(np.max(alpha_visual),np.max(alpha_cabot), np.max(alpha_fit))])
     ax2.plot(times, alpha_cabot, label='Cabot')
     ax2.plot(times, alpha_visual, label='Visual')
+    ax2.plot(times, alpha_fit, label='Fit')
     plt.legend(loc=2)
     plt.xlabel('Time (s)')
     plt.ylabel('alpha')

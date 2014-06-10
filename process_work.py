@@ -15,7 +15,7 @@ def process(job):
   from my_utils import transform_field_elements
   from my_utils import transform_position_elements
   from Grid import mixing_zone, energy_budget
-  from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim
+  from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
   from nek import NekFile
   from tictoc import tic, toc
   from thread_work import tprocess
@@ -126,11 +126,12 @@ def process(job):
 
   if args.mixing_zone:
     tic()
-    ans['h_cabot'], ans['h_visual'], ans['Xi'], ans['Total'] = mixing_zone(data)
+    ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
+    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_visual']))
     toc('mixing_zone')
 
     if not args.series:
-      print("Mixing (h_cab,h_vis,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['Xi']))
+      print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
 
   if True:
     tic()
