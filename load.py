@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import numpy as np
 import json
 from os.path import exists
@@ -26,8 +26,8 @@ if args.frame_end == -1:
   args.frame_end = args.frame
 args.series = (args.frame != args.frame_end)
 
+import matplotlib
 if not args.display:
-  import matplotlib
   matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
@@ -96,8 +96,10 @@ if args.series:
   from subprocess import call
   foo = open(devnull, 'w')
   if args.slice:
-    call("rm -f "+args.name+"-slice.mkv", shell=True)
-    call("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv", shell=True, stdout = foo, stderr = foo)
+    call("rm -f "+args.name+"-zslice.mkv", shell=True)
+    call("avconv -f image2 -i "+args.name+"%05d-zslice.png -c:v h264 "+args.name+"-zslice.mkv", shell=True, stdout = foo, stderr = foo)
+    call("rm -f "+args.name+"-yslice.mkv", shell=True)
+    call("avconv -f image2 -i "+args.name+"%05d-yslice.png -c:v h264 "+args.name+"-yslice.mkv", shell=True, stdout = foo, stderr = foo)
   if args.mixing_cdf:
     call("rm -f "+args.name+"-cdf.mkv", shell=True)
     call("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv", shell=True, stdout = foo, stderr = foo)
@@ -120,8 +122,6 @@ if args.series:
 
     hs_fit = [d['h_fit'] for d in vals]
     alpha_fit = np.array(compute_alpha(hs_fit, times)) / (params['atwood']*params['g'])
-
-
 
     plt.figure()
     ax1 = plt.subplot(1,4,1)

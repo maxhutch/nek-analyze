@@ -153,18 +153,26 @@ class Grid:
       print("prebox time {:f}".format(sort_time))
       print("box time {:f}".format(search_time))
 
-def plot_slice(grid, fname = None):
+def plot_slice(grid, fname = None, zslice = False):
   import matplotlib.pyplot as plt
   center = int(grid.shape[1]/2)
 
   image_x = 12
-  image_y = int(image_x * grid.shape[2] / grid.shape[0] + .5)
+  if zslice:
+    image_y = int(image_x * grid.shape[1] / grid.shape[0] + .5)
+  else:
+    image_y = int(image_x * grid.shape[2] / grid.shape[0] + .5)
   fig = plt.figure(figsize=(image_x,image_y))
   ax1 = plt.subplot(1,1,1)
-  plt.title('Y-normal slice')
-  ax1.imshow(grid.yslice.transpose(), origin = 'lower', interpolation='bicubic')
+  if zslice:
+    plt.title('Z-normal slice')
+    ax1.imshow(grid.zslice.transpose(), origin = 'lower', interpolation='bicubic', extent=[grid.origin[0],grid.corner[0],grid.origin[1],grid.corner[1]])
+    plt.ylabel('Y')
+  else:
+    plt.title('Y-normal slice')
+    ax1.imshow(grid.yslice.transpose(), origin = 'lower', interpolation='bicubic')
+    plt.ylabel('Z')
   plt.xlabel('X')
-  plt.ylabel('Z')
   if fname != None:
     plt.savefig(fname)
 
