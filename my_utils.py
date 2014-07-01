@@ -143,9 +143,34 @@ def compute_alpha(h, t):
   alpha = [v[i]*v[i]/(4*h[i]) for i in range(len(v))]
   return alpha
 
+def compute_alpha_quadfit(h,t):
+  import numpy as np
+  window = 5
+  alpha = np.zeros(len(h))
+  for i in range(window, len(h) - window):
+    c = np.polyfit(t[i-window:i+window+1], h[i-window:i+window+1], 2)
+    alpha[i] = c[0]
+  return alpha
+
 def compute_reynolds(h, t):
   v = [(h[i+1] - h[i-1])/(float(t[i+1])-float(t[i-1])) for i in range(1,len(h)-1)]
   v.insert(0,0.); v.append(0.)
   alpha = [v[i]*h[i] for i in range(len(v))]
   return alpha
 
+def extract_dict(results):
+  import numpy as np
+  results_with_times = sorted([[float(elm[0]), elm[1]] for elm in results.items()])
+  times, vals = zip(*results_with_times)
+  times = np.array(times, dtype=np.float64)
+
+  # Numerical stability plot
+  PeCs  = np.array([d['PeCell'] for d in vals])
+  TMaxs = np.array([d['TAbs']   for d in vals])
+  Totals = np.array([d['Total']   for d in vals])
+  hs_cabot = [d['h_cabot'] for d in vals]
+  hs_visual = [d['h_visual'] for d in vals]
+  hs_fit = [d['h_fit'] for d in vals]
+  Xi = [d['Xi'] for d in vals]
+
+  return times, PeCs, TMaxs, Totals, hs_cabot, hs_visual, hs_fit, Xi
