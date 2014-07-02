@@ -22,9 +22,7 @@ class NekFile():
     self.current_elm = 0
     self.u_file = open(fname, 'rb')
     self.t_file = open(fname, 'rb')
-    self.x_file.seek(136+self.nelm*4,               0) 
-    self.u_file.seek(136+self.nelm*4+3*self.ntot*4, 0) 
-    self.t_file.seek(136+self.nelm*4+7*self.ntot*4, 0) 
+    self.seek(0)
 
   def close(self):
     self.x_file.close()
@@ -32,11 +30,28 @@ class NekFile():
     self.t_file.close()
     return
 
-  def get_elem(self, num):
+  def seek(self, ielm):
+    """Move file pointers to point to the ielm-th element."""
+
+    #        offset -v  header -v        map -v       field -v
+    self.x_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4,                 0) 
+    self.u_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4 + 3*self.ntot*4, 0) 
+    self.t_file.seek(ielm*4 *self.norder**3 + 136 + self.nelm*4 + 7*self.ntot*4, 0) 
+
+    return
+
+  def get_elem(self, num = 1024, pos = -1):
     import numpy as np
-    num = min(num, self.nelm - self.current_elm)
+    if pos < 0:
+      pos = self.current_elm
+    else:
+      self.current_elm = pos
+      self.seek(pos)
+
+    num = min(num, self.nelm - pos)
     if num < 0:
       return 0, None, None, None
+
     x_raw = np.fromfile(self.x_file, dtype=self.ty, count = num*(self.norder**3)*3).astype(np.float64) 
     u_raw = np.fromfile(self.u_file, dtype=self.ty, count = num*(self.norder**3)*3).astype(np.float64) 
     t_raw = np.fromfile(self.t_file, dtype=self.ty, count = num*(self.norder**3)).astype(np.float64) 
@@ -46,5 +61,6 @@ class NekFile():
     t =              np.reshape(t_raw, (self.norder**3,  num), order='F')
 
     self.current_elm += num
+
     return num, x, u, t
 
