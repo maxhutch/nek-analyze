@@ -20,12 +20,11 @@ def process(job):
   from tictoc import tic, toc
   from thread_work import tprocess
 
-  from MapReduce import merge
+  from MapReduce import MRInit, Reduce
 
   from multiprocessing import Pool
   import time as timee
 
-  ans = {}
   # Load params
   with open("{:s}.json".format(args.name), 'r') as f:
     params = json.load(f)
@@ -38,25 +37,15 @@ def process(job):
           extent[0], extent[1], extent[2], size[0], size[1], size[2], params['order']))
   trans = None
 
-  # inits
-  ans['PeCell'] = 0.
-  ans['ReCell'] = 0.
-  ans['TAbs']   = 0.
-  ans['TMax']   = 0.
-  ans['TMin']   = 0.
-  ans['UAbs']   = 0.
-  ans['dx_max'] = 0.
-  ans['data']   = Grid(args.ninterp * params['order'], 
-              params['root_mesh'], 
-              params['extent_mesh'], 
-              np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
-              boxes = args.boxes)
-
   # Load file header
   fname = "{:s}0.f{:05d}".format(args.name, frame)
   input_file = NekFile(fname)
   input_file.close()
 
+  # Initialize the MapReduce data
+  ans = MRInit(args, params)
+
+  # Setup the Map jobs
   nblock = args.thread
   elm_per_block = int(np.product(size)/args.thread)
   ranges = []
@@ -71,19 +60,21 @@ def process(job):
 	      )
   jobs  = list(targs)
 
+  # Map!
   ttime = timee.time()
   pool = Pool(args.thread)
   results = pool.map(tprocess, jobs, chunksize = 1)
   print('Map took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
 
+  # Reduce!
   ttime = timee.time()
   for r in results:
-    merge(ans, r)
+    Reduce(ans, r)
   pool.close()
   print('Reduce took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
   data = ans['data']
- 
-  # more results
+
+  # Analysis! 
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
   ans['ReCell'] = ans['UAbs']*ans['dx_max']/params['viscosity']
