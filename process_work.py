@@ -20,8 +20,8 @@ def process(job):
   from tictoc import tic, toc
   from thread_work import tprocess
 
-  from multiprocessing.dummy import Pool
-  from threading import Lock
+  from multiprocessing import Pool
+  from multiprocessing import Lock
   import time as timee
 
   ans = {}
@@ -55,17 +55,36 @@ def process(job):
   fname = "{:s}0.f{:05d}".format(args.name, frame)
   input_file = NekFile(fname)
 
-  targs = [Lock(), input_file, params, data, args]
-  jobs  = [targs]*args.thread
+  nblock = args.thread
+  elm_per_block = int(input_file.nelm/args.thread)
+  ranges = []
+  for i in range(args.thread):
+    ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
+
+  targs  = zip( ranges,
+                ["Lock()"]*nblock, 
+                [fname]*nblock, 
+		[params]*nblock, 
+		[data]*nblock, 
+		[args]*nblock
+	      )
+  jobs  = list(targs)
+  #print(jobs[0])
+  #print(jobs)
+  #jobs2  = list(zip(zip(*zip(jobs)), ))
+  #print(jobs2)
 
   ttime = timee.time()
-  with Pool(args.thread) as pool:
-    results = pool.map(tprocess, jobs, chunksize = 1)
-    for r in results:
-      ans['TMax']   = float(max(ans['TMax'], r['TMax']))
-      ans['TMin']   = float(min(ans['TMin'], r['TMin']))
-      ans['UAbs']   = float(max(ans['UAbs'], r['UAbs']))
-      ans['dx_max'] = float(max(ans['dx_max'], r['dx_max'])) 
+  pool = Pool(args.thread)
+  #with Pool(args.thread) as pool:
+  results = pool.map(tprocess, jobs, chunksize = 1)
+  for r in results:
+    ans['TMax']   = float(max(ans['TMax'], r['TMax']))
+    ans['TMin']   = float(min(ans['TMin'], r['TMin']))
+    ans['UAbs']   = float(max(ans['UAbs'], r['UAbs']))
+    ans['dx_max'] = float(max(ans['dx_max'], r['dx_max'])) 
+    data = r['data']
+  pool.close()
   print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, args.thread))
 
   input_file.close()
@@ -117,7 +136,8 @@ def process(job):
   
   # Scatter plot of temperature (slice through pseudocolor in visit)
   if args.slice:
-    plot_slice(data, fname = "{:s}{:05d}-slice.png".format(args.name, frame))
+    plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), zslice=True)
+    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame))
 
   if args.mixing_cdf:
     plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
@@ -127,7 +147,7 @@ def process(job):
   if args.mixing_zone:
     tic()
     ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
-    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_visual']))
+    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
     toc('mixing_zone')
 
     if not args.series:

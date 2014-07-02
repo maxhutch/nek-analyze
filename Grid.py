@@ -12,7 +12,7 @@ class Grid:
     import numpy as np
     from threading import Lock
     # Thread lock    
-    self.lock = Lock()
+    #self.lock = Lock()
 
     # Basic mesh info: do not change 
     self.order = order 
@@ -60,17 +60,17 @@ class Grid:
     # First, compute aggregate quantities like total kinetic energy
     tic()
     tmp = np.sum(f_elm)
-    with self.lock:
-      self.f_total += tmp
+    #with self.lock:
+    self.f_total += tmp
     tmp = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
-    with self.lock:
-      self.f_m += tmp
+    #with self.lock:
+    self.f_m += tmp
     tmp = np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
-    with self.lock:
-      self.v2  += tmp
+    #with self.lock:
+    self.v2  += tmp
     pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
-    with self.lock:
-      self.pdf += pdf_partial
+    #with self.lock:
+    self.pdf += pdf_partial
     toc('aggregate')
 
     # element-wise operations and slices
@@ -129,9 +129,9 @@ class Grid:
                         )
           tmp1 = np.amin(np.where(fs[:,:,:,i]>0, dist, np.inf))
           tmp2 = np.amin(np.where(fs[:,:,:,i]<0, dist, np.inf))
-          with self.lock:
-            self.box_dist[0,j] = min(self.box_dist[0,j], tmp1) 
-            self.box_dist[1,j] = min(self.box_dist[1,j], tmp2) 
+          #with self.lock:
+          self.box_dist[0,j] = min(self.box_dist[0,j], tmp1) 
+          self.box_dist[1,j] = min(self.box_dist[1,j], tmp2) 
         sorted_indices = []
         if done == 0:
           sorted_indices = np.argsort(elm_dists)[nsort:]
@@ -146,9 +146,9 @@ class Grid:
                         )
           tmp1 = np.amin(np.where(fs[:,:,:,i]>0, dist, np.inf))
           tmp2 = np.amin(np.where(fs[:,:,:,i]<0, dist, np.inf))
-          with self.lock:
-            self.box_dist[0,j] = min(self.box_dist[0,j], tmp1) 
-            self.box_dist[1,j] = min(self.box_dist[1,j], tmp2) 
+          #with self.lock:
+          self.box_dist[0,j] = min(self.box_dist[0,j], tmp1) 
+          self.box_dist[1,j] = min(self.box_dist[1,j], tmp2) 
         search_time += timer.time()
       print("prebox time {:f}".format(sort_time))
       print("box time {:f}".format(search_time))
