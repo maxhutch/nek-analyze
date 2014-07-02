@@ -9,17 +9,11 @@ def tprocess(job):
   from tictoc import tic, toc
 
   elm_range = job[0]
-  lock = job[1]
-  fname = job[2]
-  params = job[3]
-  data = job[4]
-  args = job[5]
+  fname = job[1]
+  params = job[2]
+  ans = job[3]
+  args = job[4]
 
-  ans = {}
-  ans['TMax']   = 0.
-  ans['TMin']   = 0.
-  ans['UAbs']   = 0.
-  ans['dx_max'] = 0.
   extent = np.array(params['extent_mesh']) - np.array(params['root_mesh'])
   size = np.array(params['shape_mesh'], dtype=int)
   ninterp = int(args.ninterp*params['order'])
@@ -69,7 +63,6 @@ def tprocess(job):
  
     # stream the elements into the grid structure
     #with lock:
-    data.add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
+    ans['data'].add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
 
-  ans['data'] = data
   return ans

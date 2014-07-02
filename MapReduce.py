@@ -4,5 +4,8 @@ def merge(whole, part):
   whole['TMin']   = float(min(whole['TMin'],   part['TMin']))
   whole['UAbs']   = float(max(whole['UAbs'],   part['UAbs']))
   whole['dx_max'] = float(max(whole['dx_max'], part['dx_max']))
+
+  whole['data'].merge(part['data'])
+
   return 
 

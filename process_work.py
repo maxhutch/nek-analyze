@@ -23,7 +23,6 @@ def process(job):
   from MapReduce import merge
 
   from multiprocessing import Pool
-  from multiprocessing import Lock
   import time as timee
 
   ans = {}
@@ -47,44 +46,43 @@ def process(job):
   ans['TMin']   = 0.
   ans['UAbs']   = 0.
   ans['dx_max'] = 0.
-  data = Grid(args.ninterp * params['order'], 
+  ans['data']   = Grid(args.ninterp * params['order'], 
               params['root_mesh'], 
               params['extent_mesh'], 
               np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
               boxes = args.boxes)
 
-  # Load file
+  # Load file header
   fname = "{:s}0.f{:05d}".format(args.name, frame)
   input_file = NekFile(fname)
+  input_file.close()
 
   nblock = args.thread
-  elm_per_block = int(input_file.nelm/args.thread)
+  elm_per_block = int(np.product(size)/args.thread)
   ranges = []
   for i in range(args.thread):
-    ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
+    ranges.append([i*elm_per_block, min((i+1)*elm_per_block, np.product(size))])
 
   targs  = zip( ranges,
-                ["Lock()"]*nblock, 
-                [fname]*nblock, 
+                [fname] *nblock, 
 		[params]*nblock, 
-		[data]*nblock, 
-		[args]*nblock
+		[ans]   *nblock, 
+		[args]  *nblock
 	      )
   jobs  = list(targs)
 
   ttime = timee.time()
   pool = Pool(args.thread)
-  #with Pool(args.thread) as pool:
   results = pool.map(tprocess, jobs, chunksize = 1)
+  print('Map took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
+
+  ttime = timee.time()
   for r in results:
     merge(ans, r)
-    data.merge(r['data'])
   pool.close()
-  print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, args.thread))
-
-  input_file.close()
-
-   
+  print('Reduce took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
+  data = ans['data']
+ 
   # more results
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
@@ -162,6 +160,8 @@ def process(job):
   if not args.series and args.display:
     plt.show()
   plt.close('all')
+
+  del ans['data']
 
   return (str(input_file.time), ans)
 
