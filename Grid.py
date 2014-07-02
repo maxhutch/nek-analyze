@@ -49,6 +49,16 @@ class Grid:
       self.box_pos[2,:] = self.box_pos[2,:] * (self.corner[2] - self.origin[2]) + self.origin[2]
       self.box_dist = np.ones((2, self.nbox), order = 'F') * np.linalg.norm(self.corner - self.origin) 
 
+  def merge(self, part):
+    self.f_xy += part.f_xy
+    self.f_m  += part.f_m
+    self.zslice  += part.zslice
+    self.zsliceu  += part.zsliceu
+    self.dotzsliceu  += part.dotzsliceu
+    self.yslice  += part.yslice
+    self.v2      += part.v2
+    self.pdf += part.pdf
+
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
     import numpy.linalg as lin

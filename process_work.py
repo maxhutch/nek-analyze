@@ -20,6 +20,8 @@ def process(job):
   from tictoc import tic, toc
   from thread_work import tprocess
 
+  from MapReduce import merge
+
   from multiprocessing import Pool
   from multiprocessing import Lock
   import time as timee
@@ -69,21 +71,14 @@ def process(job):
 		[args]*nblock
 	      )
   jobs  = list(targs)
-  #print(jobs[0])
-  #print(jobs)
-  #jobs2  = list(zip(zip(*zip(jobs)), ))
-  #print(jobs2)
 
   ttime = timee.time()
   pool = Pool(args.thread)
   #with Pool(args.thread) as pool:
   results = pool.map(tprocess, jobs, chunksize = 1)
   for r in results:
-    ans['TMax']   = float(max(ans['TMax'], r['TMax']))
-    ans['TMin']   = float(min(ans['TMin'], r['TMin']))
-    ans['UAbs']   = float(max(ans['UAbs'], r['UAbs']))
-    ans['dx_max'] = float(max(ans['dx_max'], r['dx_max'])) 
-    data = r['data']
+    merge(ans, r)
+    data.merge(r['data'])
   pool.close()
   print('Thread map took {:f}s on {:d} threads'.format(timee.time()-ttime, args.thread))
 
