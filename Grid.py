@@ -309,7 +309,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
 
   plt.legend(loc=3)
   
-  xs = np.sort(modes.ravel())
+  xs = np.sort(modes.ravel())[1:]
   ys = xs**(-5./3.) 
   for i in range(9):
     ax1.plot(xs, 10**(1.-2.*i) * ys, 'k--')
