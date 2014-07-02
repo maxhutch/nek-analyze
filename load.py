@@ -113,48 +113,56 @@ if args.series:
 
   # mixing zone analysis
   if args.mixing_zone: 
-    from my_utils import compute_alpha, compute_reynolds
+    from my_utils import compute_alpha, compute_reynolds, compute_Fr
     hs_cabot = [d['h_cabot'] for d in vals]
     alpha_cabot = np.array(compute_alpha(hs_cabot, times)) / (params['atwood']*params['g'])
 
     hs_visual = [d['h_visual'] for d in vals]
+    Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
     alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
 
     hs_fit = [d['h_fit'] for d in vals]
     alpha_fit = np.array(compute_alpha(hs_fit, times)) / (params['atwood']*params['g'])
 
     plt.figure()
-    ax1 = plt.subplot(1,4,1)
+    ax1 = plt.subplot(1,3,1)
     plt.xlabel('Time (s)')
     plt.ylabel('h (m)')
     plt.ylim([0., max(max(hs_visual), max(hs_cabot), max(hs_fit))])
     ax1.plot(times, hs_cabot, times, hs_visual, times, hs_fit)
 
-    ax2 = plt.subplot(1,4,2)
+    ax2 = plt.subplot(1,3,2)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Fr (m)')
+    plt.ylim([0., np.max(Fr_visual)])
+    ax2.plot(times, Fr_visual)
+
+    ax3 = plt.subplot(1,3,3)
     plt.ylim([0., max(np.max(alpha_visual),np.max(alpha_cabot), np.max(alpha_fit))])
-    ax2.plot(times, alpha_cabot, label='Cabot')
-    ax2.plot(times, alpha_visual, label='Visual')
-    ax2.plot(times, alpha_fit, label='Fit')
+    ax3.plot(times, alpha_cabot, label='Cabot')
+    ax3.plot(times, alpha_visual, label='Visual')
+    ax3.plot(times, alpha_fit, label='Fit')
     plt.legend(loc=2)
     plt.xlabel('Time (s)')
     plt.ylabel('alpha')
 
+    plt.savefig("{:s}-h.png".format(args.name))
+
+    plt.figure()
     Xs = [d['Xi'] for d in vals]
-    ax3 = plt.subplot(1,4,3)
+    ax1 = plt.subplot(1,2,1)
     plt.ylim([0.,1.])
-    ax3.plot(times, Xs)
+    ax1.plot(times, Xs)
     plt.xlabel('Time (s)')
     plt.ylabel('Xi')
 
     Re_visual = np.array(compute_reynolds(hs_visual, times)) / (params['viscosity'])
-    ax4 = plt.subplot(1,4,4)
-    ax4.plot(times, Re_visual)
+    ax2 = plt.subplot(1,2,2)
+    ax2.plot(times, Re_visual)
     plt.xlabel('Time (s)')
     plt.ylabel('Re')
 
-    plt.savefig("{:s}-h.png".format(args.name))
-
-
+    plt.savefig("{:s}-Xi.png".format(args.name))
 
     plt.figure()
     Ps = np.array([d['P'] for d in vals])
