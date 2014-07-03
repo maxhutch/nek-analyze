@@ -47,11 +47,10 @@ def process(job):
 
   # Setup the Map jobs
   nblock = args.thread
-  elm_per_block = int(np.product(size)/args.thread)
+  elm_per_block = int(np.product(size)/args.thread) + 1
   ranges = []
   for i in range(args.thread):
     ranges.append([i*elm_per_block, min((i+1)*elm_per_block, np.product(size))])
-
   targs  = zip( ranges,
                 [fname] *nblock, 
 		[params]*nblock, 
