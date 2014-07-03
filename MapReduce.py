@@ -3,29 +3,44 @@ def MRInit(args, params):
   import numpy as np
   from Grid import Grid
 
-  ans = {}
-  ans['PeCell'] = 0.
-  ans['ReCell'] = 0.
-  ans['TAbs']   = 0.
-  ans['TMax']   = 0.
-  ans['TMin']   = 0.
-  ans['UAbs']   = 0.
-  ans['dx_max'] = 0.
-  ans['data']   = Grid(args.ninterp * params['order'],
-              params['root_mesh'],
-              params['extent_mesh'],
-              np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
-              boxes = args.boxes)
+  #ans = {}
+  PeCell = 0.
+  ReCell = 0.
+  TAbs   = 0.
+  TMax   = 0.
+  TMin   = 0.
+  UAbs   = 0.
+  dx_max = 0.
+  data   = Grid(args.ninterp * params['order'],
+                params['root_mesh'],
+                params['extent_mesh'],
+                np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
+                boxes = args.boxes)
+
+  extent = list(np.array(params['extent_mesh']) - np.array(params['root_mesh']))
+  ninterp = int(args.ninterp*params['order'])
+
+
+  # return a cleaned up version of locals
+  ans = locals()
+  del ans['np']
+  del ans['Grid']
+  del ans['args']
+
   return ans
 
 
-def Map(pos, vel, t, trans, cart, gll, params, ans):
+def Map(pos, vel, t, params, ans):
   """ Map operations onto chunk of elements """
   import numpy as np
+  from my_utils import lagrange_matrix
   from my_utils import transform_field_elements
   from my_utils import transform_position_elements
   from tictoc import tic, toc
 
+  cart = np.linspace(0.,ans['extent'][0],num=ans['ninterp'],endpoint=False)/params['shape_mesh'][0]
+  gll  = pos[0:params['order'],0,0] - pos[0,0,0]
+  trans = lagrange_matrix(gll,cart)
 
   # pos[0,:,:] is invariant under transform, and it is all we need
   pos_trans = np.transpose(pos[0,:,:])
@@ -36,10 +51,10 @@ def Map(pos, vel, t, trans, cart, gll, params, ans):
   t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
   # Save some results pre-renorm
   max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
-  ans['TMax']   = float(max(ans['TMax'], np.amax(t_trans)))
-  ans['TMin']   = float(min(ans['TMin'], np.amin(t_trans)))
-  ans['UAbs']   = float(max(ans['UAbs'], max_speed))
-  ans['dx_max'] = float(max(ans['dx_max'], np.max(gll[1:] - gll[0:-1])))
+  ans['TMax']   = float(np.amax(t_trans))
+  ans['TMin']   = float(np.amin(t_trans))
+  ans['UAbs']   = float( max_speed)
+  ans['dx_max'] = float(np.max(gll[1:] - gll[0:-1]))
 
   # Renorm t -> [0,1]
   tic()

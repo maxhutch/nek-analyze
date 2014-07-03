@@ -11,8 +11,6 @@ class Grid:
   def __init__(self, order, origin, corner, shape, boxes = False):
     import numpy as np
     from threading import Lock
-    # Thread lock    
-    #self.lock = Lock()
 
     # Basic mesh info: do not change 
     self.order = order 
@@ -23,14 +21,14 @@ class Grid:
     self.f, self.ux, self.uy, self.uz = None, None, None, None
 
     # Aggregate quantities with inits
-    self.f_xy = np.zeros(self.shape[2])
-    self.f_m      = 0.
-    self.f_total  = 0.
-    self.v2       = 0.
     self.nbins = 1000
-    self.pdf   = np.zeros(self.nbins)
+    self.f_total  = 0.
+    self.f_m      = 0.
+    self.v2       = 0. 
+    self.pdf      = 0.
 
     # Slice information
+    self.f_xy    = np.zeros(self.shape[2])
     self.yind    = int(self.shape[1]/2. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.zind    = int(self.shape[2]/2. + .5)
@@ -50,14 +48,15 @@ class Grid:
       self.box_dist = np.ones((2, self.nbox), order = 'F') * np.linalg.norm(self.corner - self.origin) 
 
   def merge(self, part):
-    self.f_xy += part.f_xy
-    self.f_m  += part.f_m
-    self.zslice  += part.zslice
-    self.zsliceu  += part.zsliceu
+    self.f_total     += part.f_total
+    self.f_m         += part.f_m
+    self.v2          += part.v2
+    self.pdf         += part.pdf
+    self.f_xy        += part.f_xy
+    self.yslice      += part.yslice
+    self.zslice      += part.zslice
+    self.zsliceu     += part.zsliceu
     self.dotzsliceu  += part.dotzsliceu
-    self.yslice  += part.yslice
-    self.v2      += part.v2
-    self.pdf += part.pdf
 
   def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
@@ -69,21 +68,21 @@ class Grid:
 
     # First, compute aggregate quantities like total kinetic energy
     tic()
-    tmp = np.sum(f_elm)
-    #with self.lock:
-    self.f_total += tmp
-    tmp = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
-    #with self.lock:
-    self.f_m += tmp
-    tmp = np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
-    #with self.lock:
-    self.v2  += tmp
-    pdf_partial, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
-    #with self.lock:
-    self.pdf += pdf_partial
+    self.f_total  = np.sum(f_elm)
+    self.f_m      = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
+    self.v2       = np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
+    self.pdf, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
     toc('aggregate')
 
     # element-wise operations and slices
+    self.f_xy    = np.zeros(self.shape[2])
+    self.yind    = int(self.shape[1]/2. + .5)
+    self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.zind    = int(self.shape[2]/2. + .5)
+    self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
+    self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
+    self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
+
     for i in range(pos_elm.shape[1]):
       root = np.array((pos_elm[:,i] - self.origin)/self.dx + .5, dtype=int)
       yoff = self.yind - root[1]
