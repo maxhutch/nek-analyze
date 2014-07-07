@@ -5,11 +5,7 @@ def tprocess(job):
   from tictoc import tic, toc
   from MapReduce import Map, Reduce
 
-  elm_range = job[0]
-  fname = job[1]
-  params = job[2]
-  ans = job[3]
-  args = job[4]
+  elm_range, fname, params, ans, args = job
 
   from copy import deepcopy
   res = deepcopy(ans)
@@ -24,7 +20,7 @@ def tprocess(job):
 
     if nelm < 1:
       input_file.close()
-      return ans
+      return res
 
     Map(pos, vel, t, params, ans)
     Reduce(res, ans)

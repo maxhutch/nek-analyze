@@ -3,7 +3,6 @@ def MRInit(args, params):
   import numpy as np
   from Grid import Grid
 
-  #ans = {}
   PeCell = 0.
   ReCell = 0.
   TAbs   = 0.
@@ -38,9 +37,9 @@ def Map(pos, vel, t, params, ans):
   from my_utils import transform_position_elements
   from tictoc import tic, toc
 
-  cart = np.linspace(0.,ans['extent'][0],num=ans['ninterp'],endpoint=False)/params['shape_mesh'][0]
+  cart = np.linspace(0., ans['extent'][0], num=ans['ninterp'],endpoint=False)/params['shape_mesh'][0]
   gll  = pos[0:params['order'],0,0] - pos[0,0,0]
-  trans = lagrange_matrix(gll,cart)
+  trans = lagrange_matrix(gll, cart)
 
   # pos[0,:,:] is invariant under transform, and it is all we need
   pos_trans = np.transpose(pos[0,:,:])
@@ -65,7 +64,6 @@ def Map(pos, vel, t, params, ans):
   toc('renorm')
 
   # stream the elements into the grid structure
-  #with lock:
   ans['data'].add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
 
 

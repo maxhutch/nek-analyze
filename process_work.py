@@ -10,10 +10,7 @@ def process(job):
   import matplotlib.pyplot as plt
   import json
   import numpy as np
-  from Grid import Grid
-  from my_utils import find_root, lagrange_matrix
-  from my_utils import transform_field_elements
-  from my_utils import transform_position_elements
+  from my_utils import find_root
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
   from nek import NekFile
