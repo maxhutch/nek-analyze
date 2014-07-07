@@ -4,6 +4,9 @@ sys.path.append("/opt/visit2_7_1.linux-x86_64/2.7.1/linux-x86_64/lib/site-packag
 import visit 
 visit.LaunchNowin()
 
+with open('./visit.nek3d', 'w') as f:
+  f.write("NEK5000\nversion: 1.0\nfiletemplate:  {:s}%d.f%05d\nfirsttimestep: 1\nnumtimesteps: 1000".format(sys.argv[1]))
+
 visit.OpenDatabase('./visit.nek3d')
 
 visit.AddPlot("Pseudocolor", "temperature")
@@ -58,7 +61,7 @@ s.screenCapture = 0
 visit.SetSaveWindowAttributes(s)
 visit.SaveWindow()
 
-nimage = int(sys.argv[1])
+nimage = int(sys.argv[2])
 for state in range(nimage):
   visit.SetTimeSliderState(state)
   n = visit.SaveWindow()

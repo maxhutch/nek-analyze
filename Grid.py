@@ -25,11 +25,11 @@ class Grid:
     self.f_total  = 0.
     self.f_m      = 0.
     self.v2       = 0. 
-    self.pdf      = 0.
+    self.pdf      = np.zeros(self.nbins)
 
     # Slice information
     self.f_xy    = np.zeros(self.shape[2])
-    self.yind    = int(self.shape[1]/2. + .5)
+    self.yind    = int(self.shape[1]/4. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.zind    = int(self.shape[2]/2. + .5)
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')

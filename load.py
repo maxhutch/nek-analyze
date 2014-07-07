@@ -77,7 +77,7 @@ if args.series:
   PeCs  = np.array([d['PeCell'] for d in vals])
   TMaxs = np.array([d['TAbs']   for d in vals])
   Totals = np.array([d['Total']   for d in vals])
-  for i in range(TMaxs.shape[0]):
+  for i in range(1,TMaxs.shape[0]):
     if TMaxs[i] *2./params['atwood'] > 1.:
       print("Simulation went unstable at t={:f}, PeCell={:f}+/-{:f}".format(times[i], (PeCs[i]+PeCs[i-1])/2, (PeCs[i]-PeCs[i-1])/2))
       break
@@ -95,26 +95,28 @@ if args.series:
   from os import devnull
   from subprocess import call
   foo = open(devnull, 'w')
+  codec = "ffvhuff"
   if args.slice:
     call("rm -f "+args.name+"-zslice.mkv", shell=True)
-    call("avconv -f image2 -i "+args.name+"%05d-zslice.png -c:v h264 "+args.name+"-zslice.mkv", shell=True, stdout = foo, stderr = foo)
+    call("avconv -f image2 -i {:s}%05d-zslice.png -c:v {:s} {:s}-zslice.mkv".format(args.name, codec, args.name), shell=True, stdout = foo, stderr = foo)
     call("rm -f "+args.name+"-yslice.mkv", shell=True)
-    call("avconv -f image2 -i "+args.name+"%05d-yslice.png -c:v h264 "+args.name+"-yslice.mkv", shell=True, stdout = foo, stderr = foo)
+    call("avconv -f image2 -i {:s}%05d-yslice.png -c:v {:s} {:s}-yslice.mkv".format(args.name, codec, args.name), shell=True, stdout = foo, stderr = foo)
   if args.mixing_cdf:
     call("rm -f "+args.name+"-cdf.mkv", shell=True)
-    call("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv", shell=True, stdout = foo, stderr = foo)
+    call("avconv -f image2 -i {:s}%05d-cdf.png -c:v {:s} {:s}-cdf.mkv".format(args.name, codec, args.name), shell=True, stdout = foo, stderr = foo)
   if args.Fourier:
     call("rm -f "+args.name+"-spectrum.mkv", shell=True)
-    call("avconv -f image2 -i "+args.name+"%05d-spectrum.png -c:v h264 "+args.name+"-spectrum.mkv", shell=True, stdout = foo, stderr = foo) 
+    call("avconv -f image2 -i {:s}%05d-spectrum.png -c:v {:s} {:s}-spectrum.mkv".format(args.name, codec, args.name), shell=True, stdout = foo, stderr = foo) 
   if args.mixing_zone: 
     call("rm -f "+args.name+"-prof.mkv", shell=True)
-    call("avconv -f image2 -i "+args.name+"%05d-prof.png -c:v h264 "+args.name+"-prof.mkv", shell=True, stdout = foo, stderr = foo) 
+    call("avconv -f image2 -i {:s}%05d-prof.png -c:v {:s} {:s}-prof.mkv".format(args.name, codec, args.name), shell=True, stdout = foo, stderr = foo) 
   foo.close()
 
   # mixing zone analysis
   if args.mixing_zone: 
     from my_utils import compute_alpha, compute_reynolds, compute_Fr
     hs_cabot = [d['h_cabot'] for d in vals]
+    Fr_cabot = compute_Fr(hs_cabot, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
     alpha_cabot = np.array(compute_alpha(hs_cabot, times)) / (params['atwood']*params['g'])
 
     hs_visual = [d['h_visual'] for d in vals]
@@ -122,23 +124,31 @@ if args.series:
     alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
 
     hs_fit = [d['h_fit'] for d in vals]
+    Fr_fit = compute_Fr(hs_fit, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
     alpha_fit = np.array(compute_alpha(hs_fit, times)) / (params['atwood']*params['g'])
 
     plt.figure()
     ax1 = plt.subplot(1,3,1)
     plt.xlabel('Time (s)')
     plt.ylabel('h (m)')
-    plt.ylim([0., max(max(hs_visual), max(hs_cabot), max(hs_fit))])
+    plt.ylim([0., params['extent_mesh'][2]])
     ax1.plot(times, hs_cabot, times, hs_visual, times, hs_fit)
 
     ax2 = plt.subplot(1,3,2)
     plt.xlabel('Time (s)')
     plt.ylabel('Fr (m)')
-    plt.ylim([0., np.max(Fr_visual)])
-    ax2.plot(times, Fr_visual)
+    plt.ylim([0., 1.5])
+    ax2.plot(times, Fr_cabot, times, Fr_visual, times, Fr_fit)
+    #Fr_analytic = np.sqrt(1./3.14159265358)
+    Fr_analytic = np.sqrt(
+                    2*params['atwood']*params['g']/(1+params['atwood']) / (2*np.pi*params['kmin']) + (2.*np.pi*params['kmin'] * params['viscosity'])**2
+                         ) - (2.*np.pi*params['kmin'] * (params['viscosity'] + params['conductivity']))
+    Fr_analytic /= np.sqrt(params['atwood'] * params['g'] / params['kmin'] / (1+ params['atwood']))
+    print("Fr reduced by {:f}".format(np.sqrt(1./np.pi) - Fr_analytic))
+    ax2.plot([0., times[-1]], [Fr_analytic]*2)
 
     ax3 = plt.subplot(1,3,3)
-    plt.ylim([0., max(np.max(alpha_visual),np.max(alpha_cabot), np.max(alpha_fit))])
+    plt.ylim([0., 0.1])
     ax3.plot(times, alpha_cabot, label='Cabot')
     ax3.plot(times, alpha_visual, label='Visual')
     ax3.plot(times, alpha_fit, label='Fit')
