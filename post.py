@@ -2,8 +2,8 @@
 Post-processing module: to be completed by user
 """
 
-def post_process(results, params, args):
-  """Post-process results, outputting to screen or files.
+def post_series(results, params, args):
+  """Post-process time-series results, outputting to screen or files.
 
   Keyword arguments:
   results -- dictionary of ouputs of process_work keyed by time
@@ -160,3 +160,100 @@ def post_process(results, params, args):
     plt.show()
     
   return
+
+
+def post_frame(ans, args, params, frame, time):
+  if args.series or not args.display:
+    import matplotlib
+    matplotlib.use('Agg')
+
+  from tictoc import tic, toc
+  import numpy as np
+  import matplotlib.pyplot as plt
+  from my_utils import find_root
+  from Grid import mixing_zone, energy_budget
+  from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
+
+  data = ans['data']
+
+  # Analysis! 
+  ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
+  ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
+  ans['ReCell'] = ans['UAbs']*ans['dx_max']/params['viscosity']
+  if args.verbose:
+    print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
+    print("Max speed: {:f}".format(ans['UAbs']))
+    print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
+    if args.boxes:
+      print("Boxes: " + str(np.log2(data.boxes)))
+
+  center = data.shape[1]/2
+  if not args.contour:
+    data.cont = None
+  else:
+    data.cont = np.zeros((data.shape[0], data.shape[1]))
+    tic()
+    for i in range(data.shape[0]):
+      for j in range(data.shape[1]):
+        print(i,j)
+        data.cont[i,j] = find_root(data.x[i,j,:,2], data.f[i,j,:], desired_resolution = 1.e-15)
+    if frame == 1:
+      modes_x = np.fft.fftfreq(data.shape[0], data.x[1,0,0,0] - data.x[0,0,0,0]) 
+      modes_y = np.fft.rfftfreq(data.shape[1], data.x[0,1,0,1] - data.x[0,0,0,1]) 
+      modes = np.zeros((modes_x.size, modes_y.size))
+      for i in range(modes_x.size):
+        for j in range(modes_y.size):
+          modes[i,j] = np.sqrt(abs(modes_x[i])*abs(modes_x[i]) + abs(modes_y[j]) * abs(modes_y[j]))
+      np.save("{:s}-cont{:d}".format(args.name, frame), data.cont)
+      np.save("{:s}-modes".format(args.name), modes)
+    if frame == 2:
+      np.save("{:s}-cont{:d}".format(args.name, 2), data.cont)
+    toc('contour')
+
+  tic()
+  if data.box_dist != None:
+    plot_dim(data, fname = "{:s}{:05d}-dim.png".format(args.name, frame)) 
+
+  if args.Fourier:
+    plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
+                  slices = [.5],
+                  contour = args.contour
+                 )
+  
+  # Scatter plot of temperature (slice through pseudocolor in visit)
+  if args.slice:
+    plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=time, zslice=True)
+    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=time)
+
+  if args.mixing_cdf:
+    plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
+
+  toc('plot')
+
+  if args.mixing_zone:
+    tic()
+    ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
+    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
+    toc('mixing_zone')
+
+    if not args.series:
+      tic()
+      print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
+      toc('mixing zone')
+
+  if True:
+    tic()
+    ans['P'], ans['K'] = energy_budget(data)
+    toc('energy_budget')
+
+    if not args.series:
+      print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
+
+  if not args.series and args.display:
+    plt.show()
+  plt.close('all')
+
+  del ans['data']
+
+  return 
+

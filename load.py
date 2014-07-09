@@ -3,7 +3,7 @@ import numpy as np
 import json
 from os.path import exists
 from process_work import process
-from post import post_process
+from post import post_series
 import time
 
 # Define arguments
@@ -47,16 +47,12 @@ if len(jobs) > 2 and args.parallel:
 else:
   stuff =  map(process, jobs)
 
-# Open results dictionary
-fname = '{:s}-results.dat'.format(args.name)
-results = {}
-if exists(fname):
-  with open(fname, 'r') as f:
-    results = json.load(f)
-
 # Insert new results into the dictionary
+fname = '{:s}-results.dat'.format(args.name)
 for i, res in enumerate(stuff):
+
   # load the results dictionary
+  results = {}
   if exists(fname):
     with open(fname, 'r') as f:
       results = json.load(f)
@@ -71,12 +67,12 @@ for i, res in enumerate(stuff):
 
   # dump the dictionary
   with open(fname, 'w') as f:
-    json.dump(results,f)
+    json.dump(results,f, indent=2, separators=(',',':'))
 
   # Print a progress update
   run_time = time.time() - start_time
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
 
 # Post-post process the contents of the results dictionary
-post_process(results, params, args)
+post_series(results, params, args)
 
