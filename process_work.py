@@ -116,8 +116,8 @@ def process(job):
   
   # Scatter plot of temperature (slice through pseudocolor in visit)
   if args.slice:
-    plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), zslice=True)
-    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame))
+    plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=input_file.time, zslice=True)
+    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=input_file.time)
 
   if args.mixing_cdf:
     plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
@@ -131,7 +131,9 @@ def process(job):
     toc('mixing_zone')
 
     if not args.series:
+      tic()
       print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
+      toc('mixing zone')
 
   if True:
     tic()

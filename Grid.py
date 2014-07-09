@@ -31,6 +31,7 @@ class Grid:
     self.f_xy    = np.zeros(self.shape[2])
     self.yind    = int(self.shape[1]/4. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.yvslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.zind    = int(self.shape[2]/2. + .5)
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
@@ -54,6 +55,7 @@ class Grid:
     self.pdf         += part.pdf
     self.f_xy        += part.f_xy
     self.yslice      += part.yslice
+    self.yvslice     += part.yvslice
     self.zslice      += part.zslice
     self.zsliceu     += part.zsliceu
     self.dotzsliceu  += part.dotzsliceu
@@ -76,9 +78,7 @@ class Grid:
 
     # element-wise operations and slices
     self.f_xy    = np.zeros(self.shape[2])
-    self.yind    = int(self.shape[1]/2. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.zind    = int(self.shape[2]/2. + .5)
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
     self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
@@ -91,8 +91,20 @@ class Grid:
 
       self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
       if yoff >= 0 and yoff < self.order:
+        ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
+        uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
+        uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
+
+        # y-slice of scalar field
         self.yslice[root[0]:root[0]+self.order, 
                     root[2]:root[2]+self.order] = f_tmp[:,yoff,:]
+
+        self.yvslice[root[0]+1:root[0]+self.order-1, 
+                     root[2]+1:root[2]+self.order-1] = (
+          uz_tmp[2:self.order,yoff,1:self.order-1] - uz_tmp[0:self.order-2,yoff,1:self.order-1]
+        - ux_tmp[1:self.order-1:,yoff,2:self.order] + ux_tmp[1:self.order-1,yoff,0:self.order-2]
+                                                       )/(2.*self.dx)
+
       if zoff >= 0 and zoff < self.order:
         ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
         uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
@@ -162,25 +174,37 @@ class Grid:
       print("prebox time {:f}".format(sort_time))
       print("box time {:f}".format(search_time))
 
-def plot_slice(grid, fname = None, zslice = False):
+def plot_slice(grid, fname = None, zslice = False, time = 0.):
   import matplotlib.pyplot as plt
   center = int(grid.shape[1]/2)
 
-  image_x = 12
+  image_y = 24
   if zslice:
-    image_y = int(image_x * grid.shape[1] / grid.shape[0] + .5)
+    image_x = int(image_y * grid.shape[0] / grid.shape[1] + .5)
   else:
-    image_y = int(image_x * grid.shape[2] / grid.shape[0] + .5)
-  fig = plt.figure(figsize=(image_x,image_y))
-  ax1 = plt.subplot(1,1,1)
+    image_x = int(image_y * grid.shape[0] / grid.shape[2] + .5)
   if zslice:
-    plt.title('Z-normal slice')
-    ax1.imshow(grid.zslice.transpose(), origin = 'lower', interpolation='bicubic', extent=[grid.origin[0],grid.corner[0],grid.origin[1],grid.corner[1]])
+    fig = plt.figure(figsize=(image_x,image_y))
+    ax1 = plt.subplot(1,1,1)
+    plt.title('Z-normal slice @ t={:3.2f}'.format(time))
+    ax1.imshow(grid.zslice.transpose(), origin = 'lower', 
+      interpolation='bicubic', 
+      vmin = 0., vmax = 1., 
+      extent=[grid.origin[0],grid.corner[0],grid.origin[1],grid.corner[1]])
     plt.ylabel('Y')
   else:
-    plt.title('Y-normal slice')
-    ax1.imshow(grid.yslice.transpose(), origin = 'lower', interpolation='bicubic')
+    fig = plt.figure(figsize=(3*image_x,image_y))
+    ax1 = plt.subplot(1,2,1)
+    plt.title('Y-normal slice @ t={:3.2f}'.format(time))
+    ax1.imshow(grid.yslice.transpose(), origin = 'lower', 
+      interpolation='bicubic', 
+      vmin = 0., vmax = 1., 
+      extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
     plt.ylabel('Z')
+    ax2 = plt.subplot(1,2,2)
+    ax2.imshow(grid.yvslice.transpose(), origin = 'lower', 
+      interpolation='bicubic',
+      extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
   plt.xlabel('X')
   if fname != None:
     plt.savefig(fname)
@@ -331,14 +355,18 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
 def mixing_zone(grid, thresh = .01):
   import numpy as np
   from my_utils import find_root
+  from tictoc import tic, toc
 
   L = np.max(grid.corner[2]) - np.min(grid.origin[2])
 
+  tic()
   f_xy = np.ones(grid.shape[2])
   for i in range(grid.shape[2]):
     f_xy[i] = grid.f_xy[i] / (grid.shape[0]*grid.shape[1]) 
+  toc('mix_renorm')
 
   # Cabot's h
+  tic()
   h = 0.
   for i in range(f_xy.shape[0]):
     if f_xy[i] < .5:
@@ -346,18 +374,26 @@ def mixing_zone(grid, thresh = .01):
     else:
       h += 2*(1.-f_xy[i])
   h_cabot = (h * L / f_xy.shape[0])
+  toc('mix_cabot')
 
   # visual h
-  spread = max(int(h_cabot * f_xy.shape[0]/ (4.*L)), 1)
+  tic()
   zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)
+  toc('mix_linspace')
+  tic()
+  h_visual = ( find_root(zs, f_xy, y0 = thresh) 
+             - find_root(zs, f_xy, y0 = 1-thresh)) / 2.
+  toc('mix_visual')
+
+  spread = max(int(h_cabot * f_xy.shape[0]/ (4.*L)), 1)
   p = np.polyfit(zs[  grid.shape[2]/2-spread:grid.shape[2]/2 + spread],
                  f_xy[grid.shape[2]/2-spread:grid.shape[2]/2 + spread], 1)
   h_fit = abs((1.)/(2. * p[0]))
-  h_visual = ( find_root(zs, f_xy, y0 = thresh) 
-             - find_root(zs, f_xy, y0 = 1-thresh)) / 2.
 
+  tic()
   X = float(grid.f_m/(h*grid.shape[0]*grid.shape[1]))
   Y = float(grid.f_total/(np.prod(grid.shape)))
+  toc('mix_agg')
 
   return h_cabot, h_visual, h_fit, X, Y
 

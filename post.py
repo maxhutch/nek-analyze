@@ -36,9 +36,10 @@ def post_process(results, params, args):
     plt.figure()
     ax1 = plt.subplot(1,1,1)
     plt.xlabel('Time (s)')
-    ax1.plot(times, PeCs,                      label='Cell Peclet')
+    ax1.plot(times, np.log(PeCs),          label='Log[Cell Peclet]')
     ax1.plot(times, TMaxs*2./params['atwood'], label='max(T)/max(T0)')
     ax1.plot(times, Totals/np.max(np.abs(Totals)), label='avg(T)/max(avg(T))')
+    plt.ylim(ymin = 0)
     plt.legend(loc=2)
     plt.savefig("{:s}-stability.png".format(args.name))
  

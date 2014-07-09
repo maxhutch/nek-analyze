@@ -59,8 +59,8 @@ def Map(pos, vel, t, params, ans):
   tic()
   Tt_low = -params['atwood']/2.; Tt_high = params['atwood']/2.
   t_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
-  t_trans = np.maximum(t_trans, 0.)
-  t_trans = np.minimum(t_trans, 1.)
+  #t_trans = np.maximum(t_trans, -1.)
+  #t_trans = np.minimum(t_trans, 2.)
   toc('renorm')
 
   # stream the elements into the grid structure
