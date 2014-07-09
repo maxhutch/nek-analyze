@@ -7,13 +7,15 @@ def find_root(x, y, y0 = .5, desired_resolution = None):
   i_low = 0
   i_high = x.shape[0]
   failsafe = 0
-  while (i_high - i_low) > 32 and failsafe < 10:
+  while (i_high - i_low) > 32 and failsafe < 20:
     failsafe += 1
     i_1 = int(i_low + (i_high-i_low)/3)
     i_2 = int(i_low + (i_high-i_low)*2/3)
-    if y[i_1] > y0*1.1:
+    #print("{:d} {:d} {:d}".format(i_low, i_high, failsafe))
+    #print("{:f}, {:f} ; {:f} {:f}".format(y[i_1], y0*1.05, y[i_2], y0*.95))
+    if y[i_1] > y0:
       i_low = i_1
-    if y[i_2] < y0*.9:
+    if y[i_2] < y0:
       i_high = i_2
 
   f = interpolate.interp1d(x[i_low:i_high], y[i_low:i_high], kind='cubic')
