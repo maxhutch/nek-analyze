@@ -52,15 +52,19 @@ def process(job):
 
   # Map!
   ttime = timee.time()
-  pool = Pool(args.thread)
-  results = pool.map(tprocess, jobs, chunksize = 1)
+  if args.thread > 1:
+    pool = Pool(args.thread)
+    results = pool.map(tprocess, jobs, chunksize = 1)
+  else: 
+    results = [tprocess(jobs[0])]
   print('Map took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
 
   # Reduce!
   ttime = timee.time()
   for r in results:
     Reduce(ans, r)
-  pool.close()
+  if args.thread > 1:
+    pool.close()
   print('Reduce took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
   data = ans['data']
 
