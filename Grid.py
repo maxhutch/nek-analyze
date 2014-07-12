@@ -32,6 +32,7 @@ class Grid:
     self.yind    = int(self.shape[1]/4. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yvslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.ypslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yuzslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yuxslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.zind    = int(self.shape[2]/2. + .5)
@@ -57,6 +58,7 @@ class Grid:
     self.pdf         += part.pdf
     self.f_xy        += part.f_xy
     self.yslice      += part.yslice
+    self.ypslice     += part.ypslice
     self.yvslice     += part.yvslice
     self.yuzslice    += part.yuzslice
     self.yuxslice    += part.yuxslice
@@ -64,7 +66,7 @@ class Grid:
     self.zsliceu     += part.zsliceu
     self.dotzsliceu  += part.dotzsliceu
 
-  def add(self, pos_elm, f_elm, ux_elm, uy_elm, uz_elm):
+  def add(self, pos_elm, p_elm, f_elm, ux_elm, uy_elm, uz_elm):
     import numpy as np
     import numpy.linalg as lin
     import scipy.ndimage.measurements as measurements
@@ -84,6 +86,7 @@ class Grid:
     self.f_xy    = np.zeros(self.shape[2])
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yvslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.ypslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yuzslice  = np.zeros((self.shape[0], self.shape[2]), order='F') 
     self.yuxslice  = np.zeros((self.shape[0], self.shape[2]), order='F') 
     self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
@@ -101,6 +104,7 @@ class Grid:
         ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
         uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
         uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
+        p_tmp = np.reshape(p_elm[:,i], (self.order,self.order,self.order), order='F')
 
         # y-slice of scalar field
         self.yslice[  root[0]:root[0]+self.order, 
@@ -109,6 +113,12 @@ class Grid:
                       root[2]:root[2]+self.order] = uz_tmp[:,yoff,:]
         self.yuxslice[root[0]:root[0]+self.order, 
                       root[2]:root[2]+self.order] = ux_tmp[:,yoff,:]
+
+        #mgh = 1.e-3 * 9.8*(np.tile(np.arange(0,self.order)*self.dx, (self.order,1)))
+        #mgh += 1.e-3 * 9.8 * pos_elm[2,i]
+
+        self.ypslice[root[0]:root[0]+self.order, 
+                     root[2]:root[2]+self.order] = p_tmp[:,yoff,:]# - mgh * f_tmp[:,yoff,:]
 
         self.yvslice[root[0]+1:root[0]+self.order-1, 
                      root[2]+1:root[2]+self.order-1] = (
@@ -185,7 +195,7 @@ class Grid:
       print("prebox time {:f}".format(sort_time))
       print("box time {:f}".format(search_time))
 
-def plot_slice(grid, fname = None, zslice = False, time = 0.):
+def plot_slice(grid, fname = None, zslice = False, time = 0., height = None):
   import matplotlib
   matplotlib.rc('font', size=8)
   import matplotlib.pyplot as plt
@@ -196,7 +206,7 @@ def plot_slice(grid, fname = None, zslice = False, time = 0.):
   if zslice:
     image_x = int(image_y * grid.shape[0] / grid.shape[1] + .5)
   else:
-    image_x = 4*int(image_y * grid.shape[0] / grid.shape[2] + .5)
+    image_x = 5*int(image_y * grid.shape[0] / grid.shape[2] + .5)
   image_x = max( image_x,  image_y * 1050/1680 )
   image_x = min( image_x,  image_y * 1680/1050 )
 
@@ -214,12 +224,16 @@ def plot_slice(grid, fname = None, zslice = False, time = 0.):
   else:
     fig = plt.figure(figsize=(image_x,image_y))
 
-    ax1 = plt.subplot(1,4,1)
+    ax1 = plt.subplot(1,5,1)
     ax1.imshow(grid.yslice.transpose(), origin = 'lower', 
       interpolation='bicubic', 
       vmin = 0., vmax = 1., 
       aspect = 'auto',
       extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
+    if height != None:
+      ax1.plot([grid.origin[0], grid.corner[0]], [height, height], linestyle='dashed', linewidth=1.0, color='w')
+      plt.xlim([grid.origin[0], grid.corner[0]])
+      plt.ylim([grid.origin[2], grid.corner[2]])
     plt.ylabel('Z')
     plt.yticks(np.linspace(grid.origin[2],grid.corner[2], 5))
     plt.xticks(np.linspace(grid.origin[0],grid.corner[0], 3))
@@ -227,8 +241,17 @@ def plot_slice(grid, fname = None, zslice = False, time = 0.):
     umax = np.max(np.max(grid.yuzslice), np.max(grid.yuzslice))
     umin = np.min(np.min(grid.yuzslice), np.min(grid.yuzslice))
 
-    ax2 = plt.subplot(1,4,2)
+    ax2 = plt.subplot(1,5,2)
     ax2.imshow(grid.yuzslice.transpose(), origin = 'lower', 
+      interpolation='bicubic',
+      vmin = umin, vmax = umax, 
+      aspect = 'auto',
+      extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
+    plt.yticks(np.linspace(grid.origin[2],grid.corner[2], 5))
+    plt.xticks(np.linspace(grid.origin[0],grid.corner[0], 3))
+
+    ax3 = plt.subplot(1,5,3)
+    ax3.imshow(grid.yuxslice.transpose(), origin = 'lower', 
       interpolation='bicubic',
       vmin = umin, vmax = umax, 
       aspect = 'auto',
@@ -238,22 +261,23 @@ def plot_slice(grid, fname = None, zslice = False, time = 0.):
     plt.yticks(np.linspace(grid.origin[2],grid.corner[2], 5))
     plt.xticks(np.linspace(grid.origin[0],grid.corner[0], 3))
 
-    ax2 = plt.subplot(1,4,3)
-    ax2.imshow(grid.yuxslice.transpose(), origin = 'lower', 
+    ax4 = plt.subplot(1,5,4)
+    ax4.imshow(grid.yvslice.transpose(), origin = 'lower', 
       interpolation='bicubic',
-      vmin = umin, vmax = umax, 
       aspect = 'auto',
       extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
     plt.yticks(np.linspace(grid.origin[2],grid.corner[2], 5))
     plt.xticks(np.linspace(grid.origin[0],grid.corner[0], 3))
 
-    ax3 = plt.subplot(1,4,4)
-    ax3.imshow(grid.yvslice.transpose(), origin = 'lower', 
+    ax5 = plt.subplot(1,5,5)
+    ax5.imshow(grid.ypslice.transpose(), origin = 'lower', 
       interpolation='bicubic',
       aspect = 'auto',
       extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
     plt.yticks(np.linspace(grid.origin[2],grid.corner[2], 5))
     plt.xticks(np.linspace(grid.origin[0],grid.corner[0], 3))
+
+
 
   if fname != None:
     plt.savefig(fname)

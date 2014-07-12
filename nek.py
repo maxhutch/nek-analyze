@@ -21,12 +21,14 @@ class NekFile():
       self.ty = 'f4'
     self.current_elm = 0
     self.u_file = open(fname, 'rb')
+    self.p_file = open(fname, 'rb')
     self.t_file = open(fname, 'rb')
     self.seek(0)
 
   def close(self):
     self.x_file.close()
     self.u_file.close()
+    self.p_file.close()
     self.t_file.close()
     return
 
@@ -36,6 +38,7 @@ class NekFile():
     #        offset -v  header -v        map -v       field -v
     self.x_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4,                 0) 
     self.u_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4 + 3*self.ntot*4, 0) 
+    self.p_file.seek(ielm*4 *self.norder**3 + 136 + self.nelm*4 + 6*self.ntot*4, 0) 
     self.t_file.seek(ielm*4 *self.norder**3 + 136 + self.nelm*4 + 7*self.ntot*4, 0) 
 
     return
@@ -54,13 +57,15 @@ class NekFile():
 
     x_raw = np.fromfile(self.x_file, dtype=self.ty, count = num*(self.norder**3)*3).astype(np.float64) 
     u_raw = np.fromfile(self.u_file, dtype=self.ty, count = num*(self.norder**3)*3).astype(np.float64) 
+    p_raw = np.fromfile(self.p_file, dtype=self.ty, count = num*(self.norder**3)).astype(np.float64) 
     t_raw = np.fromfile(self.t_file, dtype=self.ty, count = num*(self.norder**3)).astype(np.float64) 
     
     x = np.transpose(np.reshape(x_raw, (self.norder**3,3,num), order='F'), (0,2,1))
     u = np.transpose(np.reshape(u_raw, (self.norder**3,3,num), order='F'), (0,2,1))
+    p =              np.reshape(p_raw, (self.norder**3,  num), order='F')
     t =              np.reshape(t_raw, (self.norder**3,  num), order='F')
 
     self.current_elm += num
 
-    return num, x, u, t
+    return num, x, u, p, t
 

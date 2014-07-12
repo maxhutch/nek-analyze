@@ -15,14 +15,14 @@ def tprocess(job):
   for pos in range(elm_range[0], elm_range[1], args.block):
     tic()
     nelm_to_read = min(args.block, elm_range[1] - pos)
-    nelm, pos, vel, t = input_file.get_elem(nelm_to_read, pos)
+    nelm, x, u, p, t = input_file.get_elem(nelm_to_read, pos)
     toc('read')
 
     if nelm < 1:
       input_file.close()
       return res
 
-    Map(pos, vel, t, params, ans)
+    Map(x, u, p, t, params, ans)
     Reduce(res, ans)
 
   input_file.close()

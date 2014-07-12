@@ -29,7 +29,7 @@ def MRInit(args, params):
   return ans
 
 
-def Map(pos, vel, t, params, ans):
+def Map(pos, vel, p, t, params, ans):
   """ Map operations onto chunk of elements """
   import numpy as np
   from my_utils import lagrange_matrix
@@ -45,9 +45,9 @@ def Map(pos, vel, t, params, ans):
   pos_trans = np.transpose(pos[0,:,:])
 
   # transform all the fields at once
-  hunk = np.concatenate((t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
+  hunk = np.concatenate((p, t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
   hunk_trans = transform_field_elements(hunk, trans, cart)
-  t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 4, axis=1)
+  p_trans, t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 5, axis=1)
   # Save some results pre-renorm
   max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
   ans['TMax']   = float(np.amax(t_trans))
@@ -64,7 +64,7 @@ def Map(pos, vel, t, params, ans):
   toc('renorm')
 
   # stream the elements into the grid structure
-  ans['data'].add(pos_trans, t_trans, ux_trans, uy_trans, uz_trans)
+  ans['data'].add(pos_trans, p_trans, t_trans, ux_trans, uy_trans, uz_trans)
 
 
 def Reduce(whole, part):

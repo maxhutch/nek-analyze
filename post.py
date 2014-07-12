@@ -84,13 +84,15 @@ def post_series(results, params, args):
       plt.xlabel('Time (s)')
       plt.ylabel('h (m)')
       plt.ylim([0., params['extent_mesh'][2]])
-      ax1.plot(times, hs_cabot, times, hs_visual, times, hs_fit)
+      #ax1.plot(times, hs_cabot, times, hs_visual, times, hs_fit)
+      ax1.plot(times, hs_visual)
  
       ax2 = plt.subplot(1,3,2)
       plt.xlabel('Time (s)')
       plt.ylabel('Fr (m)')
       plt.ylim([0., 1.5])
-      ax2.plot(times, Fr_cabot, times, Fr_visual, times, Fr_fit)
+      #ax2.plot(times, Fr_cabot, times, Fr_visual, times, Fr_fit)
+      ax2.plot(times, Fr_visual)
       #Fr_analytic = np.sqrt(1./3.14159265358)
       Fr_analytic = np.sqrt(
                       2*params['atwood']*params['g']/(1+params['atwood']) / (2*np.pi*params['kmin']) + (2.*np.pi*params['kmin'] * params['viscosity'])**2
@@ -98,15 +100,16 @@ def post_series(results, params, args):
       Fr_analytic /= np.sqrt(params['atwood'] * params['g'] / params['kmin'] / (1+ params['atwood']))
       print("Fr reduced by {:f}".format(np.sqrt(1./np.pi) - Fr_analytic))
       ax2.plot([0., times[-1]], [Fr_analytic]*2)
- 
+      
       ax3 = plt.subplot(1,3,3)
       plt.ylim([0., 0.1])
       ax3.plot(times, alpha_cabot, label='Cabot')
       ax3.plot(times, alpha_visual, label='Visual')
-      ax3.plot(times, alpha_fit, label='Fit')
+      #ax3.plot(times, alpha_fit, label='Fit')
       plt.legend(loc=2)
       plt.xlabel('Time (s)')
       plt.ylabel('alpha')
+      
  
       plt.savefig("{:s}-h.png".format(args.name))
  
@@ -210,6 +213,25 @@ def post_frame(ans, args, params, frame, time):
       np.save("{:s}-cont{:d}".format(args.name, 2), data.cont)
     toc('contour')
 
+  if args.mixing_zone:
+    tic()
+    ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
+    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
+    toc('mixing_zone')
+
+    if not args.series:
+      tic()
+      print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
+      toc('mixing zone')
+
+  if True:
+    tic()
+    ans['P'], ans['K'] = energy_budget(data)
+    toc('energy_budget')
+
+    if not args.series:
+      print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
+
   tic()
   if data.box_dist != None:
     plot_dim(data, fname = "{:s}{:05d}-dim.png".format(args.name, frame)) 
@@ -223,7 +245,7 @@ def post_frame(ans, args, params, frame, time):
   # Scatter plot of temperature (slice through pseudocolor in visit)
   if args.slice:
     plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=time, zslice=True)
-    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=time)
+    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=time, height=ans['h_visual'])
 
   if args.mixing_cdf:
     plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
