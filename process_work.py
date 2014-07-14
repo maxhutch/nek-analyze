@@ -15,6 +15,8 @@ def process(job):
 
   from multiprocessing import Pool
   import time as timee
+  from copy import deepcopy
+
 
   # Load params
   with open("{:s}.json".format(args.name), 'r') as f:
@@ -34,7 +36,8 @@ def process(job):
   input_file.close()
 
   # Initialize the MapReduce data
-  ans = MRInit(args, params)
+  init = MRInit(args, params)
+  ans = deepcopy(init)
 
   # Setup the Map jobs
   nblock = args.thread
@@ -45,7 +48,7 @@ def process(job):
   targs  = zip( ranges,
                 [fname] *nblock, 
 		[params]*nblock, 
-		[ans]   *nblock, 
+		[init]   *nblock, 
 		[args]  *nblock
 	      )
   jobs  = list(targs)
