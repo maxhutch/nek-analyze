@@ -45,9 +45,9 @@ def Map(pos, vel, p, t, params, ans):
   pos_trans = np.transpose(pos[0,:,:])
 
   # transform all the fields at once
-  hunk = np.concatenate((p, t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
+  hunk = np.concatenate((t, p, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
   hunk_trans = transform_field_elements(hunk, trans, cart)
-  p_trans, t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 5, axis=1)
+  t_trans, p_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 5, axis=1)
   # Save some results pre-renorm
   max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
   ans['TMax']   = float(np.amax(t_trans))
@@ -59,12 +59,14 @@ def Map(pos, vel, p, t, params, ans):
   tic()
   Tt_low = -params['atwood']/2.; Tt_high = params['atwood']/2.
   t_trans = (t_trans - Tt_low)/(Tt_high - Tt_low)
+  print(np.max(t_trans), np.min(t_trans))
   #t_trans = np.maximum(t_trans, -1.)
   #t_trans = np.minimum(t_trans, 2.)
   toc('renorm')
 
   # stream the elements into the grid structure
   ans['data'].add(pos_trans, p_trans, t_trans, ux_trans, uy_trans, uz_trans)
+  print("Added data")
 
 
 def Reduce(whole, part):
@@ -75,6 +77,7 @@ def Reduce(whole, part):
   whole['dx_max'] = float(max(whole['dx_max'], part['dx_max']))
 
   whole['data'].merge(part['data'])
+  print("Reduced data")
 
   return 
 

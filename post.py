@@ -252,25 +252,6 @@ def post_frame(ans, args, params, frame, time):
 
   toc('plot')
 
-  if args.mixing_zone:
-    tic()
-    ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
-    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
-    toc('mixing_zone')
-
-    if not args.series:
-      tic()
-      print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
-      toc('mixing zone')
-
-  if True:
-    tic()
-    ans['P'], ans['K'] = energy_budget(data)
-    toc('energy_budget')
-
-    if not args.series:
-      print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
-
   if not args.series and args.display:
     plt.show()
   plt.close('all')
