@@ -2,7 +2,7 @@
 import numpy as np
 import json
 from os.path import exists
-from process_work import process
+from procs import outer_process
 from post import post_series
 import time
 
@@ -43,9 +43,9 @@ if len(jobs) > 2 and args.parallel:
   from IPython.parallel import Client
   p = Client(profile='default')
   pmap = p.load_balanced_view().map_async
-  stuff = pmap(process, jobs)
+  stuff = pmap(outer_process, jobs)
 else:
-  stuff =  map(process, jobs)
+  stuff =  map(outer_process, jobs)
 
 # Insert new results into the dictionary
 fname = '{:s}-results.dat'.format(args.name)

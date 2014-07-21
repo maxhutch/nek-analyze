@@ -1,4 +1,11 @@
-def process(job):  
+"""
+Parallel process model: does not require modification
+"""
+
+def outer_process(job):  
+  """
+  Process to be executed in the outer IPython.parallel map
+  """
 
   # Split the arguments
   args = job[0]
@@ -8,7 +15,6 @@ def process(job):
   import numpy as np
   from nek import NekFile
   from tictoc import tic, toc
-  from thread_work import tprocess
 
   from MapReduce import MRInit, Reduce
   from post import post_frame
@@ -57,9 +63,9 @@ def process(job):
   ttime = timee.time()
   if args.thread > 1:
     pool = Pool(args.thread)
-    results = pool.map(tprocess, jobs, chunksize = 1)
+    results = pool.map(inner_process, jobs, chunksize = 1)
   else: 
-    results = [tprocess(jobs[0])]
+    results = [inner_process(jobs[0])]
   print('Map took {:f}s on {:d} processes'.format(timee.time()-ttime, args.thread))
 
   # Reduce!
@@ -76,3 +82,39 @@ def process(job):
 
   return (str(input_file.time), ans)
 
+def inner_process(job):
+  """
+  Process to be executed  in the inner multiprocessing map
+  """
+
+  # Parse the arguments
+  elm_range, fname, params, ans, args = job
+
+  import numpy as np
+  from nek import NekFile
+  from tictoc import tic, toc
+  from MapReduce import Map, Reduce
+  from copy import deepcopy
+
+  # Create 'empty' answer dictionary
+  res = deepcopy(ans)
+
+  input_file = NekFile(fname)
+
+  for pos in range(elm_range[0], elm_range[1], args.block):
+    tic()
+    nelm_to_read = min(args.block, elm_range[1] - pos)
+    nelm, x, u, p, t = input_file.get_elem(nelm_to_read, pos)
+    toc('read')
+
+    if nelm < 1:
+      input_file.close()
+      return res
+
+    Map(x, u, p, t, params, ans)
+
+    # This reduce is more of a combiner
+    Reduce(res, ans)
+
+  input_file.close()
+  return res
