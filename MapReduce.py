@@ -1,8 +1,17 @@
-def MRInit(args, params):
+def MR_init(args, params):
   """ Initialize MapReduce data """
   import numpy as np
   from Grid import Grid
 
+  params['extent'] = list(np.array(params['extent_mesh']) - np.array(params['root_mesh']))
+  params['ninterp'] = int(args.ninterp*params['order'])
+  if args.verbose:
+    print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
+            extent[0], extent[1], extent[2], 
+            params['shape_mesh'][0], params['shape_mesh'][1], params['shape_mesh'][2],
+            params['order']))
+
+  # base cases
   PeCell = 0.
   ReCell = 0.
   TAbs   = 0.
@@ -16,10 +25,6 @@ def MRInit(args, params):
                 np.array(params['shape_mesh'], dtype=int) * int(args.ninterp * params['order']),
                 boxes = args.boxes)
 
-  extent = list(np.array(params['extent_mesh']) - np.array(params['root_mesh']))
-  ninterp = int(args.ninterp*params['order'])
-
-
   # return a cleaned up version of locals
   ans = locals()
   del ans['np']
@@ -29,7 +34,7 @@ def MRInit(args, params):
   return ans
 
 
-def Map(pos, vel, p, t, params, ans):
+def map_(pos, vel, p, t, params, scratch = None):
   """ Map operations onto chunk of elements """
   import numpy as np
   from my_utils import lagrange_matrix
@@ -37,7 +42,11 @@ def Map(pos, vel, p, t, params, ans):
   from my_utils import transform_position_elements
   from tictoc import tic, toc
 
-  cart = np.linspace(0., ans['extent'][0], num=ans['ninterp'],endpoint=False)/params['shape_mesh'][0]
+  ans = {}
+  if scratch != None:
+    ans = scratch
+
+  cart = np.linspace(0., params['extent'][0], num=params['ninterp'],endpoint=False)/params['shape_mesh'][0]
   gll  = pos[0:params['order'],0,0] - pos[0,0,0]
   trans = lagrange_matrix(gll, cart)
 
@@ -66,15 +75,17 @@ def Map(pos, vel, p, t, params, ans):
   # stream the elements into the grid structure
   ans['data'].add(pos_trans, p_trans, t_trans, ux_trans, uy_trans, uz_trans)
 
-
-def Reduce(whole, part):
+def reduce_(whole, part):
   """ Reduce results into a single output object (dict) """
   whole['TMax']   = float(max(whole['TMax'],   part['TMax']))
   whole['TMin']   = float(min(whole['TMin'],   part['TMin']))
   whole['UAbs']   = float(max(whole['UAbs'],   part['UAbs']))
   whole['dx_max'] = float(max(whole['dx_max'], part['dx_max']))
 
-  whole['data'].merge(part['data'])
+  if 'data' in whole:
+    whole['data'].merge(part['data'])
+  else:
+    whole['data'] = part['data']
 
   return 
 

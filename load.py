@@ -1,57 +1,39 @@
 #!/usr/bin/env python3
-import numpy as np
+"""
+Driver for nek-analyze
+"""
+
+
+# get arguments
+from ui import command_line_ui
+args = command_line_ui()
+
+# load params from genrun.py input dictionary
 import json
-from os.path import exists
-from procs import outer_process
-from post import post_series
-import time
-
-# Define arguments
-from argparse import ArgumentParser
-parser = ArgumentParser()
-parser.add_argument("name",                 help="Nek *.fld output file")
-parser.add_argument("-f",  "--frame",       help="[Starting] Frame number", type=int, default=1)
-parser.add_argument("-e",  "--frame_end",   help="Ending frame number", type=int, default=-1)
-parser.add_argument("-s",  "--slice",       help="Display slice", action="store_true")
-parser.add_argument("-c",  "--contour",     help="Display contour", action="store_true")
-parser.add_argument("-n",  "--ninterp",     help="Interpolating order", type=float, default = 1.)
-parser.add_argument("-z",  "--mixing_zone", help="Compute mixing zone width", action="store_true")
-parser.add_argument("-m",  "--mixing_cdf",  help="Plot CDF of box temps", action="store_true")
-parser.add_argument("-F",  "--Fourier",     help="Plot Fourier spectrum in x-y", action="store_true")
-parser.add_argument("-b",  "--boxes",       help="Compute box covering numbers", action="store_true")
-parser.add_argument("-nb", "--block",       help="Number of elements to process at a time", type=int, default=65536)
-parser.add_argument("-nt", "--thread",      help="Number of threads to spawn", type=int, default=1)
-parser.add_argument("-d",  "--display",     help="Display plots with X", action="store_true", default=False)
-parser.add_argument("-p",  "--parallel",    help="Use parallel map (IPython)", action="store_true", default=False)
-parser.add_argument(       "--series",      help="Apply time-series analyses", action="store_true", default=False)
-parser.add_argument("-v",  "--verbose",     help="Should I be really verbose, that is: wordy?", action="store_true", default=False)
-
-# Load the arguments
-args = parser.parse_args()
-if args.frame_end == -1:
-  args.frame_end = args.frame
-args.series = (args.frame != args.frame_end) or args.series
-
-# Load params
 with open("{:s}.json".format(args.name), 'r') as f:
   params = json.load(f)
 
-# Schedule the frames
-jobs = [[args, i] for i in range(args.frame, args.frame_end+1)]
+# Set up the frame arguments
+from procs import outer_process
+jobs = [[args, params, i] for i in range(args.frame, args.frame_end+1)]
+
+# schedule the frames, one IPython process each
+# if only one process or parallel not set, use normal map
+import time
 start_time = time.time()
 if len(jobs) > 2 and args.parallel:
   from IPython.parallel import Client
   p = Client(profile='default')
-  pmap = p.load_balanced_view().map_async
-  stuff = pmap(outer_process, jobs)
+  stuff = p.load_balanced_view().map_async(outer_process, jobs)
 else:
   stuff =  map(outer_process, jobs)
 
-# Insert new results into the dictionary
+# insert new results into the dictionary
+from os.path import exists
 fname = '{:s}-results.dat'.format(args.name)
 for i, res in enumerate(stuff):
 
-  # load the results dictionary
+  # load the results dictionary (if it exists)
   results = {}
   if exists(fname):
     with open(fname, 'r') as f:
@@ -65,7 +47,7 @@ for i, res in enumerate(stuff):
     # insert results
     results[res[0]] = res[1]
 
-  # dump the dictionary
+  # dump the dictionary back to json file
   with open(fname, 'w') as f:
     json.dump(results,f, indent=2, separators=(',',':'))
 
@@ -74,5 +56,6 @@ for i, res in enumerate(stuff):
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
 
 # Post-post process the contents of the results dictionary
+from post import post_series
 post_series(results, params, args)
 
