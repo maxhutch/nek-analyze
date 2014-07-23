@@ -28,7 +28,7 @@ def outer_process(job):
 
   # Setup the Map jobs 
   nblock = args.thread
-  elm_per_block = int(input_file.nelm/args.thread) + 1
+  elm_per_block = int((input_file.nelm-1)/args.thread) + 1
   ranges = []
   for i in range(args.thread):
     ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
@@ -43,7 +43,7 @@ def outer_process(job):
   # Map!
   import time as time_
   ttime = time_.time()
-  if args.thread < 1:
+  if args.thread < 2:
     results = map(inner_process, jobs)
   else:
     from multiprocessing import Pool
@@ -94,7 +94,9 @@ def inner_process(job):
   from tictoc import tic, toc
   for pos in range(elm_range[0], elm_range[1], args.block):
     tic()
-    nelm, x, u, p, t = input_file.get_elem(args.block, pos)
+    # make sure we don't read past this thread's range
+    nelm_to_read = min(args.block, elm_range[1] - pos)
+    nelm, x, u, p, t = input_file.get_elem(nelm_to_read, pos)
     toc('read')
 
     # All the work is here!

@@ -98,7 +98,6 @@ def post_series(results, params, args):
                       2*params['atwood']*params['g']/(1+params['atwood']) / (2*np.pi*params['kmin']) + (2.*np.pi*params['kmin'] * params['viscosity'])**2
                            ) - (2.*np.pi*params['kmin'] * (params['viscosity'] + params['conductivity']))
       Fr_analytic /= np.sqrt(params['atwood'] * params['g'] / params['kmin'] / (1+ params['atwood']))
-      print("Fr reduced by {:f}".format(np.sqrt(1./np.pi) - Fr_analytic))
       ax2.plot([0., times[-1]], [Fr_analytic]*2)
       
       ax3 = plt.subplot(1,3,3)
@@ -184,11 +183,11 @@ def post_frame(ans, args, params, frame, time):
   ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
   ans['ReCell'] = ans['UAbs']*ans['dx_max']/params['viscosity']
   if args.verbose:
-    print("Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
-    print("Max speed: {:f}".format(ans['UAbs']))
-    print("Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
+    print("  Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
+    print("  Max speed: {:f}".format(ans['UAbs']))
+    print("  Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
     if args.boxes:
-      print("Boxes: " + str(np.log2(data.boxes)))
+      print("  Boxes: " + str(np.log2(data.boxes)))
 
   center = data.shape[1]/2
   if not args.contour:

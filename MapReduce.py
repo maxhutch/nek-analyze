@@ -6,8 +6,8 @@ def MR_init(args, params):
   params['extent'] = list(np.array(params['extent_mesh']) - np.array(params['root_mesh']))
   params['ninterp'] = int(args.ninterp*params['order'])
   if args.verbose:
-    print("Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
-            extent[0], extent[1], extent[2], 
+    print("  Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
+            params['extent'][0], params['extent'][1], params['extent'][2], 
             params['shape_mesh'][0], params['shape_mesh'][1], params['shape_mesh'][2],
             params['order']))
 
