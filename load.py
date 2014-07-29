@@ -56,6 +56,7 @@ for i, res in enumerate(stuff):
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
 
 # Post-post process the contents of the results dictionary
-from post import post_series
-post_series(results, params, args)
+from importlib import import_module
+x = import_module(args.post)
+x.post_series(results, params, args)
 

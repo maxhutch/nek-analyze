@@ -46,6 +46,10 @@ def command_line_ui():
                  help="Use parallel map (IPython)")
   p.add_argument(       "--series", action="store_true", default=False,
                  help="Apply time-series analyses")
+  p.add_argument("--mapreduce", default="MapReduce",
+                 help="Module containing Map and Reduce implementations")
+  p.add_argument("--post", default="post",
+                 help="Module containing post_frame and post_series")
   p.add_argument("-v",  "--verbose", action="store_true", default=False,
                  help="Should I be really verbose, that is: wordy?")
  

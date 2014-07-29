@@ -2,17 +2,18 @@
 Parallel process model: does not require modification
 """
 
-
 def outer_process(job):  
   """
   Process to be executed in the outer IPython.parallel map
   """
 
-  # always need these
-  import numpy as np
-
   # Split the arguments
   args, params, frame = job
+
+  # always need these
+  import numpy as np
+  from importlib import import_module
+  MR = import_module(args.mapreduce)
 
   # Read the header
   from nek import NekFile
@@ -22,8 +23,7 @@ def outer_process(job):
 
   # Initialize the MapReduce data with base cases
   from copy import deepcopy
-  from MapReduce import MR_init
-  init = MR_init(args, params)
+  init = MR.MR_init(args, params)
   ans = deepcopy(init)
 
   # Setup the Map jobs 
@@ -54,17 +54,16 @@ def outer_process(job):
     print('  Map took {:f}s on {:d} processes'.format(time_.time()-ttime, args.thread))
 
   # Reduce!
-  from MapReduce import reduce_
   ttime = time_.time()
   for r in results:
-    reduce_(ans, r)
+    MR.reduce_(ans, r)
   data = ans['data']
   if args.verbose:
     print('  Reduce took {:f}s on {:d} processes'.format(time_.time()-ttime, args.thread))
 
   # Analysis! 
-  from post import post_frame
-  post_frame(ans, args, params, frame, input_file.time)
+  post = import_module(args.post)
+  post.post_frame(ans, args, params, frame, input_file.time)
 
   return (str(input_file.time), ans)
 
@@ -74,11 +73,13 @@ def inner_process(job):
   Process to be executed  in the inner multiprocessing map
   """
   
-  # always need this
-  import numpy as np
-
   # Parse the arguments
   elm_range, fname, params, ans, args = job
+
+  # always need this
+  import numpy as np
+  from importlib import import_module
+  MR = import_module(args.mapreduce)
 
   # Create 'empty' answer dictionary
   from copy import deepcopy
@@ -90,7 +91,6 @@ def inner_process(job):
   res['time'] = input_file.time
 
   # Loop over maps and local reduces
-  from MapReduce import map_, reduce_
   from tictoc import tic, toc
   for pos in range(elm_range[0], elm_range[1], args.block):
     tic()
@@ -100,10 +100,10 @@ def inner_process(job):
     toc('read')
 
     # All the work is here!
-    map_(x, u, p, t, params, ans)
+    MR.map_(x, u, p, t, params, ans)
 
     # This reduce is more of a combiner
-    reduce_(res, ans)
+    MR.reduce_(res, ans)
 
   input_file.close()
   return res
