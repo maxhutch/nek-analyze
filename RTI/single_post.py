@@ -67,31 +67,22 @@ def post_series(results, params, args):
     # mixing zone analysis
     if args.mixing_zone: 
       from my_utils import compute_alpha, compute_reynolds, compute_Fr
-      hs_cabot = [d['h_cabot'] for d in vals]
-      Fr_cabot = compute_Fr(hs_cabot, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
-      alpha_cabot = np.array(compute_alpha(hs_cabot, times)) / (params['atwood']*params['g'])
- 
+
       hs_visual = [d['h_visual'] for d in vals]
       Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
       alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
  
-      hs_fit = [d['h_fit'] for d in vals]
-      Fr_fit = compute_Fr(hs_fit, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
-      alpha_fit = np.array(compute_alpha(hs_fit, times)) / (params['atwood']*params['g'])
- 
       plt.figure()
-      ax1 = plt.subplot(1,3,1)
+      ax1 = plt.subplot(1,2,1)
       plt.xlabel('Time (s)')
       plt.ylabel('h (m)')
       plt.ylim([0., params['extent_mesh'][2]])
-      #ax1.plot(times, hs_cabot, times, hs_visual, times, hs_fit)
       ax1.plot(times, hs_visual)
  
-      ax2 = plt.subplot(1,3,2)
+      ax2 = plt.subplot(1,2,2)
       plt.xlabel('Time (s)')
       plt.ylabel('Fr (m)')
       plt.ylim([0., 1.5])
-      #ax2.plot(times, Fr_cabot, times, Fr_visual, times, Fr_fit)
       ax2.plot(times, Fr_visual)
       #Fr_analytic = np.sqrt(1./3.14159265358)
       Fr_analytic = np.sqrt(
@@ -100,16 +91,6 @@ def post_series(results, params, args):
       Fr_analytic /= np.sqrt(params['atwood'] * params['g'] / params['kmin'] / (1+ params['atwood']))
       ax2.plot([0., times[-1]], [Fr_analytic]*2)
       
-      ax3 = plt.subplot(1,3,3)
-      plt.ylim([0., 0.1])
-      ax3.plot(times, alpha_cabot, label='Cabot')
-      ax3.plot(times, alpha_visual, label='Visual')
-      #ax3.plot(times, alpha_fit, label='Fit')
-      plt.legend(loc=2)
-      plt.xlabel('Time (s)')
-      plt.ylabel('alpha')
-      
- 
       plt.savefig("{:s}-h.png".format(args.name))
  
       plt.figure()
@@ -132,6 +113,7 @@ def post_series(results, params, args):
       Ps = np.array([d['P'] for d in vals])
       Ks = np.array([d['K'] for d in vals])
       ax1 = plt.subplot(1,1,1)
+      hs_cabot = [d['h_cabot'] for d in vals]
       budget = (params['atwood'] * params['g'] * np.square(hs_cabot) * 
                (params["extent_mesh"][0] - params["root_mesh"][0]) *
                (params["extent_mesh"][1] - params["root_mesh"][1]) / 2.)
@@ -141,22 +123,6 @@ def post_series(results, params, args):
       plt.ylabel('Energy / h^2')
       plt.legend(loc=2)
       plt.savefig("{:s}-energy.png".format(args.name))
-
-  if  args.contour:
-    cont1 = np.load("{:s}-cont{:d}.npy".format(args.name, 1))
-    cont2 = np.load("{:s}-cont{:d}.npy".format(args.name, 2))
-    modes = np.load("{:s}-modes.npy".format(args.name))
-    kont1 = np.fft.rfft2(cont1)/cont1.size
-    kont2 = np.fft.rfft2(cont2)/cont1.size
-    plt.figure()
-    ax1 = plt.subplot(1,1,1)
-    ax1.plot(modes.ravel(), np.abs(kont1).ravel(), 'o')
-    ax1.plot(modes.ravel(), np.abs(kont2).ravel(), 'o')
-    plt.figure()
-    ax1 = plt.subplot(1,1,1)
-    ax1.plot(modes.ravel(), np.log(np.divide(np.abs(kont2), np.abs(kont1))).ravel()/0.01, 'bo') 
-#    plt.xscale('log')
-#    plt.yscale('log')
 
   if args.display:
     plt.show()
@@ -270,9 +236,20 @@ def post_frame(ans, args, params, frame, time):
     if not args.series:
       print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
 
+  '''
+  ans['anis_T'] = ans['data'].vv_xy / (ans['data'].vv_xy[:,0] + ans['data'].vv_xy[:,3] + ans['data'].vv_xy[:,5])
+  ans['anis_T'][0,:] -= 1./3.
+  ans['anis_T'][3,:] -= 1./3.
+  ans['anis_T'][5,:] -= 1./3.
+  '''
+
   if not args.series and args.display:
     plt.show()
   plt.close('all')
+
+  # We don't want to store this in the json results
+  with open("{:s}{:05d}-raw.npz".format(args.name, frame), 'wb') as f:
+    np.savez(f, yslice = ans['data'].yslice, yuzslice = ans['data'].yuzslice, yvslice = ans['data'].yvslice, f_xy=ans['data'].f_xy)
 
   del ans['data']
 

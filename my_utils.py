@@ -141,10 +141,11 @@ def compute_index(root, shape):
 
 def compute_Fr(h, t):
   import numpy as np
-  v = [(h[i+1] - h[i-1])/(float(t[i+1])-float(t[i-1])) for i in range(1,len(h)-1)]
-  v.insert(0,0.); v.append(0.)
-
-  Fr = np.array(v) 
+  window = 3
+  Fr = np.zeros(len(h))
+  for i in range(window, len(h) - window):
+    c = np.polyfit(t[i-window:i+window+1], h[i-window:i+window+1], 1)
+    Fr[i] = c[0]
   return Fr
 
 def compute_alpha(h, t):
