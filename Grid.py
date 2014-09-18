@@ -17,7 +17,7 @@ class Grid:
     self.origin = np.array(origin)
     self.corner = np.array(corner)
     self.shape = shape 
-    self.dx = (self.corner[0] - self.origin[0])/(self.shape[0])
+    self.dx = (self.corner[:] - self.origin[:])/(self.shape[:])
     self.f, self.ux, self.uy, self.uz = None, None, None, None
 
     # Aggregate quantities with inits
@@ -27,9 +27,10 @@ class Grid:
     self.v2       = 0. 
     self.pdf      = np.zeros(self.nbins)
 
-    # Slice information
+    # Slice information (add anisotropy tensor (<u_i u_j>/<u_k u_k>)
     self.f_xy    = np.zeros(self.shape[2])
-    self.yind    = int(self.shape[1]/4. + .5)
+    self.vv_xy    = np.zeros((self.shape[2],6), order='F')
+    self.yind    = int(self.shape[1]/2. + .5)
     self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yvslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.ypslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
@@ -57,6 +58,7 @@ class Grid:
     self.v2          += part.v2
     self.pdf         += part.pdf
     self.f_xy        += part.f_xy
+    self.vv_xy       += part.vv_xy
     self.yslice      += part.yslice
     self.ypslice     += part.ypslice
     self.yvslice     += part.yvslice
@@ -98,12 +100,21 @@ class Grid:
       yoff = self.yind - root[1]
       zoff = self.zind - root[2]
       f_tmp  = np.reshape(f_elm[:,i], (self.order,self.order,self.order), order='F')
+      ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
+      uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
+      uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
 
-      self.f_xy[root[2]:root[2]+self.order] += np.sum(f_tmp, (0,1))
+      if np.any(np.sum(f_tmp, (0,1)) > 65):
+        print("Too big: ", root, np.sum(f_tmp,(0,1)))
+      self.f_xy[ root[2]:root[2]+self.order]   += np.sum(f_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,0] += np.sum(ux_tmp*ux_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,1] += np.sum(ux_tmp*uy_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,2] += np.sum(ux_tmp*uz_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,3] += np.sum(uy_tmp*uy_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,4] += np.sum(uy_tmp*uz_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,5] += np.sum(uz_tmp*uz_tmp, (0,1))
+
       if yoff >= 0 and yoff < self.order:
-        ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
-        uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
-        uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
         p_tmp = np.reshape(p_elm[:,i], (self.order,self.order,self.order), order='F')
 
         # y-slice of scalar field
@@ -124,7 +135,7 @@ class Grid:
                      root[2]+1:root[2]+self.order-1] = (
           uz_tmp[2:self.order,yoff,1:self.order-1] - uz_tmp[0:self.order-2,yoff,1:self.order-1]
         - ux_tmp[1:self.order-1:,yoff,2:self.order] + ux_tmp[1:self.order-1,yoff,0:self.order-2]
-                                                       )/(2.*self.dx)
+                                                       )/(2.*self.dx[0])
 
       if zoff >= 0 and zoff < self.order:
         ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
@@ -139,13 +150,13 @@ class Grid:
         self.zsliceu[root[0]:root[0]+self.order, 
                      root[1]:root[1]+self.order, 2] = uz_tmp[:,:,zoff]
         self.dotzsliceu[root[0]:root[0]+self.order, 
-                        root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx)
+                        root[1]:root[1]+self.order] = (uz_tmp[:,:,zoff+1] - uz_tmp[:,:,zoff-1])/(2.*self.dx[2])
 
     # box counting
     if self.box_pos != None:
       tic()
       fs= np.sign(np.reshape(f_elm, (self.order,self.order,self.order,f_elm.shape[1]), order='F') - 0.5)
-      X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order]*self.dx, 3, axis=0)
+      X, Y, Z = np.split(np.mgrid[0:self.order, 0:self.order, 0:self.order]*self.dx[0], 3, axis=0)
       pad = self.order*self.dx*np.sqrt(3.) 
       toc('prework')
       sort_time = 0.
@@ -232,6 +243,7 @@ def plot_slice(grid, fname = None, zslice = False, time = 0., height = None):
       extent=[grid.origin[0],grid.corner[0],grid.origin[2],grid.corner[2]] )
     if height != None:
       ax1.plot([grid.origin[0], grid.corner[0]], [height, height], linestyle='dashed', linewidth=1.0, color='w')
+      ax1.plot([grid.origin[0], grid.corner[0]], [-height, -height], linestyle='dashed', linewidth=1.0, color='w')
       plt.xlim([grid.origin[0], grid.corner[0]])
       plt.ylim([grid.origin[2], grid.corner[2]])
     plt.ylabel('Z')
@@ -476,7 +488,7 @@ def energy_budget(grid):
 
   # Potential
   zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)
-  dV = grid.dx * grid.dx * grid.dx 
+  dV = np.prod(grid.dx)
   U = 0.
   for i in range(grid.shape[2]):
     U = U - grid.f_xy[i] * zs[i] * dV

@@ -46,8 +46,18 @@ def map_(pos, vel, p, t, params, scratch = None):
   if scratch != None:
     ans = scratch
 
-  cart = np.linspace(0., params['extent'][0], num=params['ninterp'],endpoint=False)/params['shape_mesh'][0]
-  gll  = pos[0:params['order'],0,0] - pos[0,0,0]
+  # Let's compute the x, y, and z 1D bases
+  cart_x = np.linspace(0., params['extent'][0], num=params['ninterp'],endpoint=False)/params['shape_mesh'][0]
+  gll_x  = pos[0:params['order'],0,0] - pos[0,0,0]
+
+  cart_y = np.linspace(0., params['extent'][1], num=params['ninterp'],endpoint=False)/params['shape_mesh'][1]
+  gll_y  = pos[0:params['order']*params['order']:params['order'],0,1] - pos[0,0,1]
+
+  cart_z = np.linspace(0., params['extent'][2], num=params['ninterp'],endpoint=False)/params['shape_mesh'][2]
+  gll_z  = pos[0:params['order']**3:params['order']**2,0,2] - pos[0,0,2]
+
+  # and then just use y
+  cart = cart_y; gll = gll_y
   trans = lagrange_matrix(gll, cart)
 
   # pos[0,:,:] is invariant under transform, and it is all we need
