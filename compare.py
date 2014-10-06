@@ -1,8 +1,7 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import numpy as np
 import json
 from os.path import exists
-from process_work import process
 import time
 
 from argparse import ArgumentParser
@@ -10,21 +9,10 @@ parser = ArgumentParser()
 parser.add_argument("names", nargs='+',     help="Nek *.fld output file")
 parser.add_argument("-f",  "--frame",       help="[Starting] Frame number", type=int, default=1)
 parser.add_argument("-e",  "--frame_end",   help="Ending frame number", type=int, default=-1)
-parser.add_argument("-s",  "--slice",       help="Display slice", action="store_true")
-parser.add_argument("-c",  "--contour",     help="Display contour", action="store_true")
-parser.add_argument("-n",  "--ninterp",     help="Interpolating order", type=float, default = 1.)
-parser.add_argument("-z",  "--mixing_zone", help="Compute mixing zone width", action="store_true")
-parser.add_argument("-m",  "--mixing_cdf",  help="Plot CDF of box temps", action="store_true")
-parser.add_argument("-F",  "--Fourier",     help="Plot Fourier spectrum in x-y", action="store_true")
-parser.add_argument("-b",  "--boxes",       help="Compute box covering numbers", action="store_true")
-parser.add_argument("-nb", "--block",       help="Number of elements to process at a time", type=int, default=65536)
-parser.add_argument("-nt", "--thread",       help="Number of threads to spawn", type=int, default=1)
-parser.add_argument("-d",  "--display",     help="Display plots with X", action="store_true", default=False)
-parser.add_argument("-v",  "--verbose",     help="Should I be really verbose, that is: wordy?", action="store_true", default=False)
 args = parser.parse_args()
 if args.frame_end == -1:
   args.frame_end = args.frame
-args.series = (args.frame != args.frame_end)
+args.display = False 
 
 if not args.display:
   import matplotlib
@@ -67,6 +55,117 @@ for j in range(len(args.names)):
       print("Simulation {:s} went unstable at t={:f}, PeCell={:f}+/-{:f}".format(args.names[j], times[j][i], (PeCs[j][i]+PeCs[j][i-1])/2, (PeCs[j][i]-PeCs[j][i-1])/2))
       break
 
+#params = results[0]['0.0']['params']
+image_y = 8
+image_x = 5*int(image_y * params[0]["shape_mesh"][0] / params[0]["shape_mesh"][2] + .5)
+image_x = max( image_x,  image_y * 1050/1680 )
+image_x = min( image_x,  image_y * 1680/1050 )
+
+xtics = [params[j]["root_mesh"][0],params[j]["extent_mesh"][0]]
+ytics = [params[j]["root_mesh"][2], 0, params[j]["extent_mesh"][2]]
+
+Scs = [1, 7, 1]
+
+for i in range(args.frame, args.frame_end+1):
+  fig = plt.figure(figsize=(image_x,image_y))
+  fig.text(0.5,0.93,'Scalar',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
+  for j in range(len(args.names)):
+    with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
+      npzfile = np.load(f)
+      ax = plt.subplot(1,len(args.names),j+1)
+      ax.imshow(npzfile['yslice'].transpose(), origin = 'lower',
+        interpolation='bicubic',
+        vmin = 0., vmax = 1.,
+        aspect = 'auto',
+        extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
+                params[j]["root_mesh"][2],params[j]["extent_mesh"][2]]
+               )
+      #ax.plot([params[j]["root_mesh"][0], params[j]["extent_mesh"][0]], [hs_visuals[j][i], hs_visuals[j][i]], linestyle='dashed', linewidth=1.0, color='w')
+      plt.xlim([params[j]["root_mesh"][0],params[j]["extent_mesh"][0]])
+      plt.ylim([params[j]["root_mesh"][2],params[j]["extent_mesh"][2]])
+      if j == 0:
+        plt.xticks(xtics, fontsize='large')
+      else:
+        plt.xticks([])
+      if j == 0:
+        plt.yticks(ytics, fontsize='large')
+      else:
+        plt.yticks([])
+      plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+
+  plt.savefig("compare{:05d}-yslice.png".format(i), bbox_inches="tight")
+  plt.close(fig)
+
+for i in range(args.frame, args.frame_end+1):
+  fig = plt.figure(figsize=(image_x,image_y))
+  fig.text(0.5,0.93,'Vertical velocity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
+  for j in range(len(args.names)):
+    with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
+      npzfile = np.load(f)
+      ax = plt.subplot(1,len(args.names),j+1)
+      ax.imshow(npzfile['yuzslice'].transpose(), origin = 'lower',
+        interpolation='bicubic',
+        aspect = 'auto',
+        extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
+                params[j]["root_mesh"][2],params[j]["extent_mesh"][2]]
+               )
+      if j == 0:
+        plt.xticks(xtics, fontsize='large')
+      else:
+        plt.xticks([])
+      if j == 0:
+        plt.yticks(ytics, fontsize='large')
+      else:
+        plt.yticks([])
+      plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+
+
+  plt.savefig("compare{:05d}-yuzslice.png".format(i), bbox_inches="tight")
+  plt.close(fig)
+
+for i in range(args.frame, args.frame_end+1):
+  fig = plt.figure(figsize=(image_x,image_y))
+  fig.text(0.5,0.93,'Vorticity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
+  for j in range(len(args.names)):
+    with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
+      npzfile = np.load(f)
+      ax = plt.subplot(1,len(args.names),j+1)
+      ax.imshow(npzfile['yvslice'].transpose(), origin = 'lower',
+        interpolation='bicubic',
+        aspect = 'auto',
+        extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
+                params[j]["root_mesh"][2],params[j]["extent_mesh"][2]]
+               )
+      if j == 0:
+        plt.xticks(xtics, fontsize='large')
+      else:
+        plt.xticks([])
+      if j == 0:
+        plt.yticks(ytics, fontsize='large')
+      else:
+        plt.yticks([])
+      plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+
+
+  plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
+  plt.close(fig)
+
+
+
+from os import devnull
+from subprocess import call
+foo = open(devnull, 'w')
+codec = "mpeg4"
+options = "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 300 -qscale 5 -pass 1 -strict experimental"
+call("rm -f compare-yslice.mkv", shell=True)
+call("avconv -f image2 -i compare%05d-yslice.png -c:v {:s} {:s} compare-yslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
+call("rm -f compare-yuzslice.mkv", shell=True)
+call("avconv -f image2 -i compare%05d-yuzslice.png -c:v {:s} {:s} compare-yuzslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
+call("rm -f compare-yvslice.mkv", shell=True)
+call("avconv -f image2 -i compare%05d-yvslice.png -c:v {:s} {:s} compare-yvslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
+
+
+
 '''
 plt.figure()
 ax1 = plt.subplot(1,1,1)
@@ -78,29 +177,13 @@ plt.legend(loc=2)
 plt.savefig("{:s}-stability.png".format(args.name))
 '''
 
-'''
-# Make a bunch of movies
-from os import devnull
-from subprocess import call
-foo = open(devnull, 'w')
-if args.slice:
-  call("rm -f "+args.name+"-slice.mkv", shell=True)
-  call("avconv -f image2 -i "+args.name+"%05d-slice.png -c:v h264 "+args.name+"-slice.mkv", shell=True, stdout = foo, stderr = foo)
-if args.mixing_cdf:
-  call("rm -f "+args.name+"-cdf.mkv", shell=True)
-  call("avconv -f image2 -i "+args.name+"%05d-cdf.png -c:v h264 "+args.name+"-cdf.mkv", shell=True, stdout = foo, stderr = foo)
-if args.Fourier:
-  call("rm -f "+args.name+"-spectrum.mkv", shell=True)
-  call("avconv -f image2 -i "+args.name+"%05d-spectrum.png -c:v h264 "+args.name+"-spectrum.mkv", shell=True, stdout = foo, stderr = foo) 
-foo.close()
-'''
-
 colors = ['red', 'blue', 'green', 'cyan', 'magenta', 'yelow']
 
 # mixing zone analysis
-if args.mixing_zone: 
-  from my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds
+if True: 
+  from my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds, compute_Fr
   alpha_cabots = []; alpha_visuals = []; alpha_quads = []
+  Fr_visuals = [];
 
   '''
   args.names.append("Fit")
@@ -116,41 +199,40 @@ if args.mixing_zone:
     alpha_cabots.append(np.array(compute_alpha(hs_cabots[i],  times[i])) / (params[i]['atwood']*params[i]['g']))
     alpha_visuals.append(np.array(compute_alpha_quadfit(hs_visuals[i],  times[i])) / (params[i]['atwood']*params[i]['g']))
     alpha_quads.append(np.array(compute_alpha_quadfit(hs_cabots[i],  times[i])) / (params[i]['atwood']*params[i]['g']))
+    Fr_visuals.append(np.array(compute_Fr(hs_visuals[i],  times[i])) / np.sqrt(params[i]['atwood']*params[i]['g']*params[i]['extent_mesh'][0]))
+
+  second_font = 'x-large'
+
+  times = times / np.sqrt(params[0]['atwood'] * params[0]['g'] * 2 * np.pi / params[0]['extent_mesh'][0])
 
   plt.figure()
-  ax1 = plt.subplot(1,1,1)
-  plt.xlabel('Time (s)')
-  plt.ylabel('\\alpha')
-  plt.ylim([0., max([np.max(a) for a in alpha_quads + alpha_cabots])]) 
+  ax1 = plt.subplot(1,2,1)
+  plt.xlabel('$t / \\sqrt{A g k}$', fontsize = second_font)
+  plt.ylabel('$h / \\lambda$', fontsize = 'xx-large')
+  plt.ylim([0., max([np.max(a) for a in hs_cabots])/params[i]['extent_mesh'][0]]) 
   for i in range(len(args.names)):
-    ax1.plot(times[i], alpha_cabots[i], color=colors[i], label=args.names[i])
-    ax1.plot(times[i], alpha_quads[i], color=colors[i], linestyle='dashed')
-    ax1.plot(times[i], alpha_visuals[i], color=colors[i], linestyle='dotted')
-  plt.legend(loc=1)
+    ax1.plot(times[i], np.array(hs_visuals[i])/params[i]['extent_mesh'][0], label="Sc = {:d}".format(Scs[i]))
+  ax1.legend(loc=2, fontsize = second_font)
 
-  plt.figure()
-  ax1 = plt.subplot(1,1,1)
-  plt.xlabel('Time (s)')
-  plt.ylabel('h (m)')
-  plt.ylim([0., max([np.max(a) for a in hs_cabots])]) 
+  ax2 = plt.subplot(1,2,2)
+  ax2.yaxis.tick_right()
+  ax2.yaxis.set_label_position("right")
+  plt.xlabel('$t / \\sqrt{A g k}$', fontsize = second_font)
+  plt.ylabel('$\dot{h} / \sqrt{A g \\lambda}$', fontsize = 'xx-large')
+  plt.ylim([0., max([np.max(a) for a in Fr_visuals])]) 
   for i in range(len(args.names)):
-    ax1.plot(times[i], hs_cabots[i])
-    np.savetxt(args.names[i]+"-hc.csv", np.vstack((times[i], hs_cabots[i])).transpose(), delimiter=",")
-    np.savetxt(args.names[i]+"-hv.csv", np.vstack((times[i], hs_visuals[i])).transpose(), delimiter=",")
-    print(i)
-    print(args.names)
-    print(hs_fits[i])
-    np.savetxt(args.names[i]+"-hf.csv", np.vstack((times[i], hs_fits[i])).transpose(), delimiter=",")
+    ax2.plot(times[i], Fr_visuals[i])
+  plt.savefig("compare-h.png", bbox_inches="tight")
 
-'''
   plt.figure()
   ax3 = plt.subplot(1,1,1)
-  plt.ylim([0.,1.])
+  plt.xlabel('$t / \\sqrt{A g k}$', fontsize = second_font)
+  plt.ylabel('$\Xi$', fontsize = 'xx-large', rotation='horizontal')
+  plt.ylim([0,1.])
   for i in range(len(args.names)):
-    ax3.plot(times[i], Xis[i])
-  plt.xlabel('Time (s)')
-  plt.ylabel('Xi')
-'''
+    ax3.plot(times[i], Xis[i], label="Sc = {:d}".format(Scs[i]))
+  ax3.legend(loc=2, fontsize = second_font)
+  plt.savefig("compare-Xi.png", bbox_inches="tight")
 
 '''
   gamma = 0.8822
@@ -211,6 +293,6 @@ if args.mixing_zone:
 #    plt.yscale('log')
 '''
 
-if args.display:
+if False:
   plt.show()
     
