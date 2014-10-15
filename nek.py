@@ -80,23 +80,23 @@ class NekFile():
       self.current_elm = pos
       self.seek(pos)
 
-    num = min(num, self.nelm - pos)
-    if num < 0:
+    numl = min(num, self.nelm - pos)
+    if numl < 0:
       return 0, None, None, None
 
-    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = num*(self.norder**3)*3).astype(np.float64) 
-    u_raw = np.fromfile(self.u_file, dtype=self.ty, count = num*(self.norder**3)*3).astype(np.float64) 
-    p_raw = np.fromfile(self.p_file, dtype=self.ty, count = num*(self.norder**3)).astype(np.float64) 
-    t_raw = np.fromfile(self.t_file, dtype=self.ty, count = num*(self.norder**3)).astype(np.float64) 
+    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+    u_raw = np.fromfile(self.u_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+    p_raw = np.fromfile(self.p_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+    t_raw = np.fromfile(self.t_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
     
-    x = np.transpose(np.reshape(x_raw, (self.norder**3,3,num), order='F'), (0,2,1))
-    u = np.transpose(np.reshape(u_raw, (self.norder**3,3,num), order='F'), (0,2,1))
-    p =              np.reshape(p_raw, (self.norder**3,  num), order='F')
-    t =              np.reshape(t_raw, (self.norder**3,  num), order='F')
+    x = np.transpose(np.reshape(x_raw, (self.norder**3,3,numl), order='F'), (0,2,1))
+    u = np.transpose(np.reshape(u_raw, (self.norder**3,3,numl), order='F'), (0,2,1))
+    p =              np.reshape(p_raw, (self.norder**3,  numl), order='F')
+    t =              np.reshape(t_raw, (self.norder**3,  numl), order='F')
 
-    self.current_elm += num
+    self.current_elm += numl
 
-    return num, x, u, p, t
+    return numl, x, u, p, t
 
   def write(self, x, u, p, t, ielm = -1):
 
@@ -104,7 +104,7 @@ class NekFile():
     if self.bformat == None:
       import struct
       if self.ty == '>f4':
-        fmt = '{:d}>f'.format(self.norder**3)
+        fmt = '>{:d}f'.format(self.norder**3)
       else:
         fmt = '{:d}f'.format(self.norder**3)
       self.bformat = struct.Struct(fmt)
