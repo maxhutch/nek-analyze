@@ -13,6 +13,14 @@ def command_line_ui():
   shortcuts for common argument combinations
   """
 
+  # grab defaults from config files
+  from os.path import exists, expanduser, join
+  import json
+  defaults = {"mapreduce" : "MapReduce", "post": "post"}
+  if exists(join(expanduser("~"), ".nek-analyze.json")):
+    with open(join(expanduser("~"), ".nek-analyze.json")) as f:
+      defaults.update(json.load(f))
+
   # Define arguments
   from argparse import ArgumentParser
   p = ArgumentParser()
@@ -46,9 +54,9 @@ def command_line_ui():
                  help="Use parallel map (IPython)")
   p.add_argument(       "--series", action="store_true", default=False,
                  help="Apply time-series analyses")
-  p.add_argument("--mapreduce", default="MapReduce",
+  p.add_argument("--mapreduce", default=defaults["mapreduce"],
                  help="Module containing Map and Reduce implementations")
-  p.add_argument("--post", default="post",
+  p.add_argument("--post", default=defaults["post"],
                  help="Module containing post_frame and post_series")
   p.add_argument("-v",  "--verbose", action="store_true", default=False,
                  help="Should I be really verbose, that is: wordy?")
