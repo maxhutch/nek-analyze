@@ -51,20 +51,21 @@ def map_(pos, vel, p, t, params, scratch = None):
   gll_x  = pos[0:params['order'],0,0] - pos[0,0,0]
 
   cart_y = np.linspace(0., params['extent'][1], num=params['ninterp'],endpoint=False)/params['shape_mesh'][1]
-  gll_y  = pos[0:params['order']*params['order']:params['order'],0,1] - pos[0,0,1]
+  gll_y  = pos[0:params['order']*params['order']:params['order'],1,0] - pos[0,1,0]
 
   cart_z = np.linspace(0., params['extent'][2], num=params['ninterp'],endpoint=False)/params['shape_mesh'][2]
-  gll_z  = pos[0:params['order']**3:params['order']**2,0,2] - pos[0,0,2]
+  gll_z  = pos[0:params['order']**3:params['order']**2,2,0] - pos[0,2,0]
 
   # and then just use y
   cart = cart_y; gll = gll_y
   trans = lagrange_matrix(gll, cart)
 
   # pos[0,:,:] is invariant under transform, and it is all we need
-  pos_trans = np.transpose(pos[0,:,:])
+  pos_trans = pos[0,:,:]
+  #pos_trans = np.transpose(pos[0,:,:])
 
   # transform all the fields at once
-  hunk = np.concatenate((p, t, vel[:,:,0], vel[:,:,1], vel[:,:,2]), axis=1)
+  hunk = np.concatenate((p, t, vel[:,0,:], vel[:,1,:], vel[:,2,:]), axis=1)
   hunk_trans = transform_field_elements(hunk, trans, cart)
   p_trans, t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 5, axis=1)
   # Save some results pre-renorm

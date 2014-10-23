@@ -14,6 +14,11 @@ class NekFile():
     self.nelm = int(htoks[5])
     self.norder = int(htoks[2])
     self.time = float(htoks[7])
+    if htoks[0] == "b'#max":
+      self.padded = 8 * (2**20)
+    else:
+      self.padded = -1
+
     #print("Read {:d} elements of order {:d} at time {:f}".format(self.nelm, self.norder, self.time))
 
     #''' Assume isotropic elements '''
@@ -48,6 +53,7 @@ class NekFile():
     self.nelm = base.nelm
     self.norder = base.norder
     self.time = base.time
+    self.padded = base.padded
     self.ntot = base.ntot
     self.test = base.test
     self.x_file.write(self.test)
@@ -101,11 +107,16 @@ class NekFile():
       self.t_file = open(self.fname, 'rb')
 
     # Seek to the right positions
-    #        offset -v  header -v        map -v       field -v
-    self.x_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4,                 0) 
-    self.u_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4 + 3*self.ntot*4, 0) 
-    self.p_file.seek(ielm*4 *self.norder**3 + 136 + self.nelm*4 + 6*self.ntot*4, 0) 
-    self.t_file.seek(ielm*4 *self.norder**3 + 136 + self.nelm*4 + 7*self.ntot*4, 0) 
+    if self.padded >= 0:
+      pad = self.padded + self.padded*(int((self.nelm*4 - 1)/self.padded) + 1)
+    else:
+      pad = 136 + self.nelm*4
+
+    #        offset -v          header and map -v        field -v
+    self.x_file.seek(ielm*12*self.norder**3 + pad,                 0) 
+    self.u_file.seek(ielm*12*self.norder**3 + pad + 3*self.ntot*4, 0) 
+    self.p_file.seek(ielm*4 *self.norder**3 + pad + 6*self.ntot*4, 0) 
+    self.t_file.seek(ielm*4 *self.norder**3 + pad + 7*self.ntot*4, 0) 
 
     return
 
@@ -128,8 +139,8 @@ class NekFile():
     p_raw = np.fromfile(self.p_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
     t_raw = np.fromfile(self.t_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
     
-    x = np.transpose(np.reshape(x_raw, (self.norder**3,3,numl), order='F'), (0,2,1))
-    u = np.transpose(np.reshape(u_raw, (self.norder**3,3,numl), order='F'), (0,2,1))
+    x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
+    u = np.reshape(u_raw, (self.norder**3,3,numl), order='F')
     p =              np.reshape(p_raw, (self.norder**3,  numl), order='F')
     t =              np.reshape(t_raw, (self.norder**3,  numl), order='F')
 
@@ -158,12 +169,12 @@ class NekFile():
     # write a single element's worth of data using binary formatter
     import numpy as np
     self.x_file.write(self.bformat.pack(*(x[:,0,0].astype(np.float32).tolist())))
-    self.x_file.write(self.bformat.pack(*(x[:,0,1].astype(np.float32).tolist())))
-    self.x_file.write(self.bformat.pack(*(x[:,0,2].astype(np.float32).tolist())))
+    self.x_file.write(self.bformat.pack(*(x[:,1,0].astype(np.float32).tolist())))
+    self.x_file.write(self.bformat.pack(*(x[:,2,0].astype(np.float32).tolist())))
 
     self.u_file.write(self.bformat.pack(*(u[:,0,0].astype(np.float32).tolist())))
-    self.u_file.write(self.bformat.pack(*(u[:,0,1].astype(np.float32).tolist())))
-    self.u_file.write(self.bformat.pack(*(u[:,0,2].astype(np.float32).tolist())))
+    self.u_file.write(self.bformat.pack(*(u[:,1,0].astype(np.float32).tolist())))
+    self.u_file.write(self.bformat.pack(*(u[:,2,0].astype(np.float32).tolist())))
 
     self.p_file.write(self.bformat.pack(*(p[:,0].astype(np.float32).tolist())))
     self.t_file.write(self.bformat.pack(*(t[:,0].astype(np.float32).tolist())))
