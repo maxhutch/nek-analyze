@@ -42,7 +42,8 @@ def post_series(results, params, args):
     plt.ylim(ymin = 0)
     plt.legend(loc=2)
     plt.savefig("{:s}-stability.png".format(args.name))
- 
+
+    """ 
     # Make a bunch of movies
     from os import devnull
     from subprocess import call
@@ -63,6 +64,7 @@ def post_series(results, params, args):
       call("rm -f "+args.name+"-prof.mkv", shell=True)
       call("avconv -f image2 -i {:s}%05d-prof.png -c:v {:s} {:s}-prof.mkv".format(args.name, codec, args.name), shell=True, stdout = foo, stderr = foo) 
     foo.close()
+    """
  
     # mixing zone analysis
     if args.mixing_zone: 
@@ -139,8 +141,8 @@ def post_frame(ans, args, params, frame, time):
   import numpy as np
   import matplotlib.pyplot as plt
   from my_utils import find_root
-  from Grid import mixing_zone, energy_budget
-  from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
+  from RTI.Grid import mixing_zone, energy_budget
+  from RTI.Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
 
   data = ans['data']
 

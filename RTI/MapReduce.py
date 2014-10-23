@@ -1,7 +1,7 @@
 def MR_init(args, params):
   """ Initialize MapReduce data """
   import numpy as np
-  from Grid import Grid
+  from RTI.Grid import Grid
 
   params['extent'] = list(np.array(params['extent_mesh']) - np.array(params['root_mesh']))
   params['ninterp'] = int(args.ninterp*params['order'])
