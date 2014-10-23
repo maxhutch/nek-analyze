@@ -7,6 +7,7 @@ class NekFile():
       return
 
     import struct
+    self.fname = fname
     self.x_file = open(fname, 'rb')
     self.header = self.x_file.read(132)
     htoks = str(self.header).split()
@@ -14,8 +15,10 @@ class NekFile():
     self.norder = int(htoks[2])
     self.time = float(htoks[7])
     #print("Read {:d} elements of order {:d} at time {:f}".format(self.nelm, self.norder, self.time))
+
     #''' Assume isotropic elements '''
     self.ntot = self.nelm * self.norder**3
+
     #''' Check the test float '''
     self.test = self.x_file.read(4)
     self.test_tuple = struct.unpack('f', self.test)
@@ -27,14 +30,18 @@ class NekFile():
       self.ty = 'f4'
     self.bformat = None
 
+    # Test opening the file
     self.current_elm = 0
     self.u_file = open(fname, 'rb')
     self.p_file = open(fname, 'rb')
     self.t_file = open(fname, 'rb')
     self.seek(0)
+    # Then close it
+    self.close()
 
   def init2(self, base, fname):
     # copy state and write header
+    self.fname = fname
     self.x_file = open(fname, 'wb')
     self.header = base.header
     self.x_file.write(self.header)
@@ -47,23 +54,53 @@ class NekFile():
     self.ty = base.ty
     self.bformat = base.bformat
 
+    # Test opening the file
+    self.current_elm = 0
     self.u_file = open(fname, 'wb')
     self.p_file = open(fname, 'wb')
     self.t_file = open(fname, 'wb')
-
-    self.current_elm = 0
     self.seek(0)
+    # Then close it
+    self.close()
 
   def close(self):
-    self.x_file.close()
-    self.u_file.close()
-    self.p_file.close()
-    self.t_file.close()
+    """Close file pointers and point handles to None."""
+    if self.x_file != None:
+      self.x_file.close(); self.x_file = None
+      self.u_file.close(); self.u_file = None
+      self.p_file.close(); self.p_file = None
+      self.t_file.close(); self.t_file = None
     return
 
-  def seek(self, ielm):
-    """Move file pointers to point to the ielm-th element."""
+  def seek(self, ielm, readable = False, writable = False):
+    """Move file pointers to point to the ielm-th element and file mode."""
 
+    # Check if file is byte-writable
+    if writable and (self.x_file == None or not self.x_file.writable()):
+      # [re]open as byte-writable
+      if self.x_file != None and not self.x_file.closed:
+        self.x_file.close()
+        self.u_file.close()
+        self.p_file.close()
+        self.t_file.close()
+      self.x_file = open(self.fname, 'wb')
+      self.u_file = open(self.fname, 'wb')
+      self.p_file = open(self.fname, 'wb')
+      self.t_file = open(self.fname, 'wb')
+    # Check if file is byte-readable
+    if readable and (self.x_file == None or not self.x_file.readable()):
+      # [re]open as byte-readable
+      if self.x_file != None and not self.x_file.closed:
+        self.x_file.close()
+        self.u_file.close()
+        self.p_file.close()
+        self.t_file.close()
+      self.x_file = open(self.fname, 'rb')
+      self.u_file = open(self.fname, 'rb')
+      self.p_file = open(self.fname, 'rb')
+      self.t_file = open(self.fname, 'rb')
+
+    # Seek to the right positions
     #        offset -v  header -v        map -v       field -v
     self.x_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4,                 0) 
     self.u_file.seek(ielm*12*self.norder**3 + 136 + self.nelm*4 + 3*self.ntot*4, 0) 
@@ -73,12 +110,14 @@ class NekFile():
     return
 
   def get_elem(self, num = 1024, pos = -1):
+    """Read sequential elements."""
     import numpy as np
     if pos < 0:
       pos = self.current_elm
+      self.seek(self.current_elm, readable = True)
     else:
       self.current_elm = pos
-      self.seek(pos)
+      self.seek(pos, readable = True)
 
     numl = min(num, self.nelm - pos)
     if numl < 0:
@@ -99,6 +138,7 @@ class NekFile():
     return numl, x, u, p, t
 
   def write(self, x, u, p, t, ielm = -1):
+    """Write one element."""
 
     # create a binary formatter
     if self.bformat == None:
@@ -111,7 +151,9 @@ class NekFile():
 
     # seek where we need to be
     if ielm >= 0:
-      self.seek(ielm)
+      self.seek(ielm, writable=True)
+    else:
+      self.seek(self.current_elm, writable=True)
 
     # write a single element's worth of data using binary formatter
     import numpy as np

@@ -17,9 +17,8 @@ def outer_process(job):
 
   # Read the header
   from nek import NekFile
-  fname = "{:s}0.f{:05d}".format(args.name, frame)
-  input_file = NekFile(fname)
-  input_file.close()
+  args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+  input_file = NekFile(args.fname)
 
   # Initialize the MapReduce data with base cases
   from copy import deepcopy
@@ -33,7 +32,7 @@ def outer_process(job):
   for i in range(args.thread):
     ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
   targs  = zip( ranges,
-                [fname] *nblock, 
+                [args.fname] *nblock, 
 		[params]*nblock, 
 		[init]   *nblock, 
 		[args]  *nblock
@@ -57,7 +56,6 @@ def outer_process(job):
   ttime = time_.time()
   for r in results:
     MR.reduce_(ans, r)
-  data = ans['data']
   if args.verbose:
     print('  Reduce took {:f}s on {:d} processes'.format(time_.time()-ttime, args.thread))
 
