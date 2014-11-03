@@ -26,6 +26,8 @@ def command_line_ui():
   p = ArgumentParser()
   p.add_argument("name",                 
                  help="Nek *.fld output file")
+  p.add_argument("-nf", "--nfiles", type=int, default=1,
+                 help="Number of output files, negative denotes directories")
   p.add_argument("-f",  "--frame", type=int, default=1, 
                  help="[Starting] Frame number")
   p.add_argument("-e",  "--frame_end", type=int, default=-1,   

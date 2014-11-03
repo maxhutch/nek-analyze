@@ -12,12 +12,22 @@ def outer_process(job):
 
   # always need these
   import numpy as np
+  from os.path import dirname, basename
+  from math import log10
   from importlib import import_module
   MR = import_module(args.mapreduce)
 
   # Read the header
   from nek import NekFile
-  args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+  if args.nfiles > 0:
+    args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+  else:
+    data_path = dirname(args.name)
+    data_tag  = basename(args.name) 
+    dir_width = 2;#int(log10(-args.nfiles))
+    args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, 0, data_tag, 0, frame, width=dir_width)
+  print("Opened {:s}".format(args.fname))
+
   input_file = NekFile(args.fname)
 
   # Initialize the MapReduce data with base cases
@@ -28,16 +38,23 @@ def outer_process(job):
   # Setup the Map jobs 
   nblock = args.thread
   elm_per_block = int((input_file.nelm-1)/args.thread) + 1
-  ranges = []
-  for i in range(args.thread):
-    ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
-  targs  = zip( ranges,
-                [args.fname] *nblock, 
-		[params]*nblock, 
-		[init]   *nblock, 
-		[args]  *nblock
+  jobs = []
+  for j in range(abs(args.nfiles)):
+    ranges = []
+    if args.nfiles > 0:
+      args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+    else:
+      args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, j, data_tag, j, frame, width=dir_width)
+    input_file = NekFile(args.fname)
+    for i in range(args.thread):
+      ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
+    targs  = zip( ranges,
+                  [args.fname] *nblock, 
+                  [params]*nblock, 
+                  [init]   *nblock, 
+                  [args]  *nblock
 	      )
-  jobs  = list(targs)
+    jobs.append(list(targs))
 
   # Map!
   import time as time_
