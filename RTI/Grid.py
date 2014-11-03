@@ -104,8 +104,6 @@ class Grid:
       uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
       uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
 
-      if np.any(np.sum(f_tmp, (0,1)) > 65):
-        print("Too big: ", root, np.sum(f_tmp,(0,1)))
       self.f_xy[ root[2]:root[2]+self.order]   += np.sum(f_tmp, (0,1))
       self.vv_xy[root[2]:root[2]+self.order,0] += np.sum(ux_tmp*ux_tmp, (0,1))
       self.vv_xy[root[2]:root[2]+self.order,1] += np.sum(ux_tmp*uy_tmp, (0,1))

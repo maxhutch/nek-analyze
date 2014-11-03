@@ -71,7 +71,7 @@ def post_series(results, params, args):
       from my_utils import compute_alpha, compute_reynolds, compute_Fr
 
       hs_visual = [d['h_visual'] for d in vals]
-      Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
+      Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][1])
       alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
  
       plt.figure()
