@@ -19,12 +19,12 @@ def outer_process(job):
 
   # Read the header
   from nek import NekFile
+  data_path = dirname(args.name)
+  data_tag  = basename(args.name) 
+  dir_width = int(log10(abs(args.nfiles)-1))+1
   if args.nfiles > 0:
-    args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+    args.fname = "{:s}{:0{width}d}.f{:05d}".format(args.name, 0, frame, width=dir_width)
   else:
-    data_path = dirname(args.name)
-    data_tag  = basename(args.name) 
-    dir_width = 2;#int(log10(-args.nfiles))
     args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, 0, data_tag, 0, frame, width=dir_width)
   print("Opened {:s}".format(args.fname))
 
@@ -37,24 +37,24 @@ def outer_process(job):
 
   # Setup the Map jobs 
   nblock = args.thread
-  elm_per_block = int((input_file.nelm-1)/args.thread) + 1
+  elm_per_block = int((abs(args.nfiles)*input_file.nelm-1)/args.thread) + 1
   jobs = []
   for j in range(abs(args.nfiles)):
     ranges = []
     if args.nfiles > 0:
-      args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+      args.fname = "{:s}/{:s}{:0{width}d}.f{:05d}".format(data_path, data_tag, j, frame, width=dir_width)
     else:
       args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, j, data_tag, j, frame, width=dir_width)
     input_file = NekFile(args.fname)
-    for i in range(args.thread):
+    for i in range(0, input_file.nelm, elm_per_block):
       ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
     targs  = zip( ranges,
-                  [args.fname] *nblock, 
-                  [params]*nblock, 
-                  [init]   *nblock, 
-                  [args]  *nblock
+                  [args.fname] * len(ranges), 
+                  [params] * len(ranges), 
+                  [deepcopy(init)]   *len(ranges), 
+                  [args] * len(ranges)
 	      )
-    jobs.append(list(targs))
+    jobs = jobs + list(targs)
 
   # Map!
   import time as time_
@@ -104,6 +104,7 @@ def inner_process(job):
   from nek import NekFile
   input_file = NekFile(fname)
   res['time'] = input_file.time
+  print("Processed {:s}".format(fname))
 
   # Loop over maps and local reduces
   from tictoc import tic, toc
