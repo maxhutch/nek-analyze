@@ -219,17 +219,6 @@ def post_frame(ans, args, params, frame, time):
 
   toc('plot')
 
-  if args.mixing_zone:
-    tic()
-    ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
-    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
-    toc('mixing_zone')
-
-    if not args.series:
-      tic()
-      print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
-      toc('mixing zone')
-
   if True:
     tic()
     ans['P'], ans['K'] = energy_budget(data)
@@ -251,7 +240,7 @@ def post_frame(ans, args, params, frame, time):
 
   # We don't want to store this in the json results
   with open("{:s}{:05d}-raw.npz".format(args.name, frame), 'wb') as f:
-    np.savez(f, yslice = ans['data'].yslice, yuzslice = ans['data'].yuzslice, yvslice = ans['data'].yvslice, f_xy=ans['data'].f_xy)
+    np.savez(f, yslice = ans['data'].yslice, yuzslice = ans['data'].yuzslice, yvslice = ans['data'].yvslice, zslice = ans['data'].zslice, f_xy=ans['data'].f_xy)
 
   del ans['data']
 
