@@ -28,17 +28,17 @@ class Grid:
     self.pdf      = np.zeros(self.nbins)
 
     # Slice information (add anisotropy tensor (<u_i u_j>/<u_k u_k>)
-    self.f_xy    = np.zeros(self.shape[2])
-    self.vv_xy    = np.zeros((self.shape[2],6), order='F')
-    self.yind    = int(self.shape[1]/2. + .5)
-    self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.yvslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.ypslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.yuzslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.yuxslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.zind    = int(self.shape[2]/2. + .5)
-    self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
-    self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
+    self.f_xy       = np.zeros(self.shape[2])
+    self.vv_xy      = np.zeros((self.shape[2],6), order='F')
+    self.yind       = int(self.shape[1]/4. + .5)
+    self.yslice     = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.yvslice    = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.ypslice    = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.yuzslice   = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.yuxslice   = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.zind       = int(self.shape[2]/2. + .5)
+    self.zslice     = np.zeros((self.shape[0], self.shape[1]), order='F')
+    self.zsliceu    = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
 
     # Fractal dimension stuff
@@ -85,14 +85,14 @@ class Grid:
     toc('aggregate')
 
     # element-wise operations and slices
-    self.f_xy    = np.zeros(self.shape[2])
-    self.yslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.yvslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.ypslice  = np.zeros((self.shape[0], self.shape[2]), order='F')
-    self.yuzslice  = np.zeros((self.shape[0], self.shape[2]), order='F') 
-    self.yuxslice  = np.zeros((self.shape[0], self.shape[2]), order='F') 
-    self.zslice  = np.zeros((self.shape[0], self.shape[1]), order='F')
-    self.zsliceu = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
+    self.f_xy       = np.zeros(self.shape[2])
+    self.yslice     = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.yvslice    = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.ypslice    = np.zeros((self.shape[0], self.shape[2]), order='F')
+    self.yuzslice   = np.zeros((self.shape[0], self.shape[2]), order='F') 
+    self.yuxslice   = np.zeros((self.shape[0], self.shape[2]), order='F') 
+    self.zslice     = np.zeros((self.shape[0], self.shape[1]), order='F')
+    self.zsliceu    = np.zeros((self.shape[0], self.shape[1],3), order = 'F')
     self.dotzsliceu = np.zeros((self.shape[0], self.shape[1]), order = 'F')
 
     for i in range(pos_elm.shape[1]):
@@ -138,9 +138,6 @@ class Grid:
                                                        )/(2.*self.dx[0])
 
       if zoff >= 0 and zoff < self.order:
-        ux_tmp = np.reshape(ux_elm[:,i], (self.order,self.order,self.order), order='F')
-        uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
-        uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
         self.zslice[root[0]:root[0]+self.order, 
                     root[1]:root[1]+self.order] = f_tmp[:,:,zoff]
         self.zsliceu[root[0]:root[0]+self.order, 
@@ -213,7 +210,7 @@ def plot_slice(grid, fname = None, zslice = False, time = 0., height = None):
   import numpy as np
   center = int(grid.shape[1]/2)
 
-  image_y = 12
+  image_y = 24
   if zslice:
     image_x = int(image_y * grid.shape[0] / grid.shape[1] + .5)
   else:
@@ -232,6 +229,7 @@ def plot_slice(grid, fname = None, zslice = False, time = 0., height = None):
       extent=[grid.origin[0],grid.corner[0],grid.origin[1],grid.corner[1]])
     plt.ylabel('Y')
     plt.xlabel('X')
+    #plt.colorbar()
   else:
     fig = plt.figure(figsize=(image_x,image_y))
 

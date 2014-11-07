@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
+#!/home/maxhutch/anaconda3/bin/python
 """
 Driver for nek-analyze
 """
-
 
 # get arguments
 from ui import command_line_ui
@@ -23,7 +22,7 @@ import time
 start_time = time.time()
 if len(jobs) > 2 and args.parallel:
   from IPython.parallel import Client
-  p = Client(profile='default')
+  p = Client(profile='mpi')
   stuff = p.load_balanced_view().map_async(outer_process, jobs)
 else:
   stuff =  map(outer_process, jobs)

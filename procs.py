@@ -40,19 +40,19 @@ def outer_process(job):
   elm_per_block = int((abs(args.nfiles)*input_file.nelm-1)/args.thread) + 1
   jobs = []
   for j in range(abs(args.nfiles)):
-    ranges = []
     if args.nfiles > 0:
       args.fname = "{:s}/{:s}{:0{width}d}.f{:05d}".format(data_path, data_tag, j, frame, width=dir_width)
     else:
       args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, j, data_tag, j, frame, width=dir_width)
     input_file = NekFile(args.fname)
+    ranges = []
     for i in range(0, input_file.nelm, elm_per_block):
       ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
     targs  = zip( ranges,
                   [args.fname] * len(ranges), 
-                  [params] * len(ranges), 
-                  [deepcopy(init)]   *len(ranges), 
-                  [args] * len(ranges)
+                  [params]     * len(ranges), 
+                  [init]       * len(ranges), 
+                  [args]       * len(ranges)
 	      )
     jobs = jobs + list(targs)
 
@@ -89,7 +89,7 @@ def inner_process(job):
   """
   
   # Parse the arguments
-  elm_range, fname, params, ans, args = job
+  elm_range, fname, params, ans_in, args = job
 
   # always need this
   import numpy as np
@@ -98,7 +98,8 @@ def inner_process(job):
 
   # Create 'empty' answer dictionary
   from copy import deepcopy
-  res = deepcopy(ans)
+  res = deepcopy(ans_in)
+  ans = deepcopy(ans_in)
 
   # Open the data file
   from nek import NekFile

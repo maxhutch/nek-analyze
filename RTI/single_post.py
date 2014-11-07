@@ -37,8 +37,8 @@ def post_series(results, params, args):
     ax1 = plt.subplot(1,1,1)
     plt.xlabel('Time (s)')
     ax1.plot(times, np.log(PeCs),          label='Log[Cell Peclet]')
-    ax1.plot(times, TMaxs*2./params['atwood'], label='max(T)/max(T0)')
-    ax1.plot(times, Totals/np.max(np.abs(Totals)), label='avg(T)/max(avg(T))')
+    ax1.plot(times, TMaxs*2./params['atwood'], 'gx', label='max(T)/max(T0)')
+    ax1.plot(times, Totals/np.max(np.abs(Totals)), 'r+', label='avg(T)/max(avg(T))')
     plt.ylim(ymin = 0)
     plt.legend(loc=2)
     plt.savefig("{:s}-stability.png".format(args.name))
@@ -67,64 +67,63 @@ def post_series(results, params, args):
     """
  
     # mixing zone analysis
-    if args.mixing_zone: 
-      from my_utils import compute_alpha, compute_reynolds, compute_Fr
+    from my_utils import compute_alpha, compute_reynolds, compute_Fr
 
-      hs_visual = [d['h_visual'] for d in vals]
-      Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
-      alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
- 
-      plt.figure()
-      ax1 = plt.subplot(1,2,1)
-      plt.xlabel('Time (s)')
-      plt.ylabel('h (m)')
-      plt.ylim([0., params['extent_mesh'][2]])
-      ax1.plot(times, hs_visual)
- 
-      ax2 = plt.subplot(1,2,2)
-      plt.xlabel('Time (s)')
-      plt.ylabel('Fr (m)')
-      plt.ylim([0., 1.5])
-      ax2.plot(times, Fr_visual)
-      #Fr_analytic = np.sqrt(1./3.14159265358)
-      Fr_analytic = np.sqrt(
-                      2*params['atwood']*params['g']/(1+params['atwood']) / (2*np.pi*params['kmin']) + (2.*np.pi*params['kmin'] * params['viscosity'])**2
-                           ) - (2.*np.pi*params['kmin'] * (params['viscosity'] + params['conductivity']))
-      Fr_analytic /= np.sqrt(params['atwood'] * params['g'] / params['kmin'] / (1+ params['atwood']))
-      ax2.plot([0., times[-1]], [Fr_analytic]*2)
-      
-      plt.savefig("{:s}-h.png".format(args.name))
- 
-      plt.figure()
-      Xs = [d['Xi'] for d in vals]
-      ax1 = plt.subplot(1,2,1)
-      plt.ylim([0.,1.])
-      ax1.plot(times, Xs)
-      plt.xlabel('Time (s)')
-      plt.ylabel('Xi')
- 
-      Re_visual = np.array(compute_reynolds(hs_visual, times)) / (params['viscosity'])
-      ax2 = plt.subplot(1,2,2)
-      ax2.plot(times, Re_visual)
-      plt.xlabel('Time (s)')
-      plt.ylabel('Re')
- 
-      plt.savefig("{:s}-Xi.png".format(args.name))
- 
-      plt.figure()
-      Ps = np.array([d['P'] for d in vals])
-      Ks = np.array([d['K'] for d in vals])
-      ax1 = plt.subplot(1,1,1)
-      hs_cabot = [d['h_cabot'] for d in vals]
-      budget = (params['atwood'] * params['g'] * np.square(hs_cabot) * 
-               (params["extent_mesh"][0] - params["root_mesh"][0]) *
-               (params["extent_mesh"][1] - params["root_mesh"][1]) / 2.)
-      ax1.plot(times, np.divide(Ps-Ps[0], budget), label='Potential')
-      ax1.plot(times, np.divide(Ks      , budget), label='Kinetic')
-      plt.xlabel('Time (s)')
-      plt.ylabel('Energy / h^2')
-      plt.legend(loc=2)
-      plt.savefig("{:s}-energy.png".format(args.name))
+    hs_visual = [d['h_visual'] for d in vals]
+    Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
+    alpha_visual = np.array(compute_alpha(hs_visual, times)) / (params['atwood']*params['g'])
+
+    plt.figure()
+    ax1 = plt.subplot(1,2,1)
+    plt.xlabel('Time (s)')
+    plt.ylabel('h (m)')
+    plt.ylim([0., params['extent_mesh'][2]])
+    ax1.plot(times, hs_visual)
+
+    ax2 = plt.subplot(1,2,2)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Fr (m)')
+    plt.ylim([0., 1.5])
+    ax2.plot(times, Fr_visual)
+    #Fr_analytic = np.sqrt(1./3.14159265358)
+    Fr_analytic = np.sqrt(
+                    2*params['atwood']*params['g']/(1+params['atwood']) / (2*np.pi*params['kmin']) + (2.*np.pi*params['kmin'] * params['viscosity'])**2
+                         ) - (2.*np.pi*params['kmin'] * (params['viscosity'] + params['conductivity']))
+    Fr_analytic /= np.sqrt(params['atwood'] * params['g'] / params['kmin'] / (1+ params['atwood']))
+    ax2.plot([0., times[-1]], [Fr_analytic]*2)
+    
+    plt.savefig("{:s}-h.png".format(args.name))
+
+    plt.figure()
+    Xs = [d['Xi'] for d in vals]
+    ax1 = plt.subplot(1,2,1)
+    plt.ylim([0.,1.])
+    ax1.plot(times, Xs)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Xi')
+
+    Re_visual = np.array(compute_reynolds(hs_visual, times)) / (params['viscosity'])
+    ax2 = plt.subplot(1,2,2)
+    ax2.plot(times, Re_visual)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Re')
+
+    plt.savefig("{:s}-Xi.png".format(args.name))
+
+    plt.figure()
+    Ps = np.array([d['P'] for d in vals])
+    Ks = np.array([d['K'] for d in vals])
+    ax1 = plt.subplot(1,1,1)
+    hs_cabot = [d['h_cabot'] for d in vals]
+    budget = (params['atwood'] * params['g'] * np.square(hs_cabot) * 
+             (params["extent_mesh"][0] - params["root_mesh"][0]) *
+             (params["extent_mesh"][1] - params["root_mesh"][1]) / 2.)
+    ax1.plot(times, np.divide(Ps-Ps[0], budget), label='Potential')
+    ax1.plot(times, np.divide(Ks      , budget), label='Kinetic')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Energy / h^2')
+    plt.legend(loc=2)
+    plt.savefig("{:s}-energy.png".format(args.name))
 
   if args.display:
     plt.show()
@@ -180,24 +179,22 @@ def post_frame(ans, args, params, frame, time):
       np.save("{:s}-cont{:d}".format(args.name, 2), data.cont)
     toc('contour')
 
-  if args.mixing_zone:
+  tic()
+  ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
+  plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
+  toc('mixing_zone')
+
+  if not args.series:
     tic()
-    ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
-    plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
-    toc('mixing_zone')
+    print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
+    toc('mixing zone')
 
-    if not args.series:
-      tic()
-      print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
-      toc('mixing zone')
+  tic()
+  ans['P'], ans['K'] = energy_budget(data)
+  toc('energy_budget')
 
-  if True:
-    tic()
-    ans['P'], ans['K'] = energy_budget(data)
-    toc('energy_budget')
-
-    if not args.series:
-      print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
+  if not args.series:
+    print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
 
   tic()
   if data.box_dist != None:
@@ -210,22 +207,29 @@ def post_frame(ans, args, params, frame, time):
                  )
   
   # Scatter plot of temperature (slice through pseudocolor in visit)
-  if args.slice:
-    plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=time, zslice=True)
-    plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=time, height=ans['h_visual'])
+  plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=time, zslice=True)
+  plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=time, height=ans['h_visual'])
 
-  if args.mixing_cdf:
-    plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
+  plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
 
   toc('plot')
 
-  if True:
-    tic()
-    ans['P'], ans['K'] = energy_budget(data)
-    toc('energy_budget')
+  tic()
+  ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
+  plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
+  toc('mixing_zone')
 
-    if not args.series:
-      print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
+  if not args.series:
+    tic()
+    print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
+    toc('mixing zone')
+
+  tic()
+  ans['P'], ans['K'] = energy_budget(data)
+  toc('energy_budget')
+
+  if not args.series:
+    print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
 
   '''
   ans['anis_T'] = ans['data'].vv_xy / (ans['data'].vv_xy[:,0] + ans['data'].vv_xy[:,3] + ans['data'].vv_xy[:,5])
