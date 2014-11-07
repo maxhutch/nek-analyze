@@ -12,12 +12,22 @@ def outer_process(job):
 
   # always need these
   import numpy as np
+  from os.path import dirname, basename
+  from math import log10
   from importlib import import_module
   MR = import_module(args.mapreduce)
 
   # Read the header
   from nek import NekFile
-  args.fname = "{:s}0.f{:05d}".format(args.name, frame)
+  data_path = dirname(args.name)
+  data_tag  = basename(args.name) 
+  dir_width = int(log10(abs(args.nfiles)-1))+1
+  if args.nfiles > 0:
+    args.fname = "{:s}{:0{width}d}.f{:05d}".format(args.name, 0, frame, width=dir_width)
+  else:
+    args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, 0, data_tag, 0, frame, width=dir_width)
+  print("Opened {:s}".format(args.fname))
+
   input_file = NekFile(args.fname)
 
   # Initialize the MapReduce data with base cases
@@ -27,17 +37,24 @@ def outer_process(job):
 
   # Setup the Map jobs 
   nblock = args.thread
-  elm_per_block = int((input_file.nelm-1)/args.thread) + 1
-  ranges = []
-  for i in range(args.thread):
-    ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
-  targs  = zip( ranges,
-                [args.fname] *nblock, 
-		[params]*nblock, 
-		[init]   *nblock, 
-		[args]  *nblock
+  elm_per_block = int((abs(args.nfiles)*input_file.nelm-1)/args.thread) + 1
+  jobs = []
+  for j in range(abs(args.nfiles)):
+    if args.nfiles > 0:
+      args.fname = "{:s}/{:s}{:0{width}d}.f{:05d}".format(data_path, data_tag, j, frame, width=dir_width)
+    else:
+      args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, j, data_tag, j, frame, width=dir_width)
+    input_file = NekFile(args.fname)
+    ranges = []
+    for i in range(0, input_file.nelm, elm_per_block):
+      ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
+    targs  = zip( ranges,
+                  [args.fname] * len(ranges), 
+                  [params]     * len(ranges), 
+                  [init]       * len(ranges), 
+                  [args]       * len(ranges)
 	      )
-  jobs  = list(targs)
+    jobs = jobs + list(targs)
 
   # Map!
   import time as time_
@@ -72,7 +89,7 @@ def inner_process(job):
   """
   
   # Parse the arguments
-  elm_range, fname, params, ans, args = job
+  elm_range, fname, params, ans_in, args = job
 
   # always need this
   import numpy as np
@@ -81,12 +98,14 @@ def inner_process(job):
 
   # Create 'empty' answer dictionary
   from copy import deepcopy
-  res = deepcopy(ans)
+  res = deepcopy(ans_in)
+  ans = deepcopy(ans_in)
 
   # Open the data file
   from nek import NekFile
   input_file = NekFile(fname)
   res['time'] = input_file.time
+  print("Processed {:s}".format(fname))
 
   # Loop over maps and local reduces
   from tictoc import tic, toc

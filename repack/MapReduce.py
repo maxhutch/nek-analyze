@@ -31,11 +31,13 @@ def map_(pos, vel, p, t, params, ans = None):
     jelm = int(ix + iy * shape[0] + iz * shape[0] * shape[1])
 
     # write element in that position
+    """
     ans["output_file"].write(pos[:,:,ielm:ielm+1], 
                              vel[:,:,ielm:ielm+1], 
                              p[:,ielm:ielm+1], 
                              t[:,ielm:ielm+1], 
                              ielm = jelm)
+    """
 
   return
 
