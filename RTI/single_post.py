@@ -244,7 +244,14 @@ def post_frame(ans, args, params, frame, time):
 
   # We don't want to store this in the json results
   with open("{:s}{:05d}-raw.npz".format(args.name, frame), 'wb') as f:
-    np.savez(f, yslice = ans['data'].yslice, yuzslice = ans['data'].yuzslice, yvslice = ans['data'].yvslice, zslice = ans['data'].zslice, f_xy=ans['data'].f_xy)
+    np.savez(f, 
+             yslice   = ans['data'].yslice, 
+             yuxslice = ans['data'].yuxslice, 
+             yuzslice = ans['data'].yuzslice, 
+	     zslice   = ans['data'].zslice, 
+	     zsliceu  = ans['data'].zsliceu, 
+	     f_xy     = ans['data'].f_xy
+	    )
 
   del ans['data']
 
