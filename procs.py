@@ -21,8 +21,8 @@ def outer_process(job):
   from nek import NekFile
   data_path = dirname(args.name)
   data_tag  = basename(args.name) 
-  dir_width = int(log10(abs(args.nfiles)-1))+1
-  if args.nfiles > 0:
+  dir_width = int(log10(abs(params["io_files"])-1))+1
+  if params["io_files"] > 0:
     args.fname = "{:s}{:0{width}d}.f{:05d}".format(args.name, 0, frame, width=dir_width)
   else:
     args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, 0, data_tag, 0, frame, width=dir_width)
@@ -37,10 +37,10 @@ def outer_process(job):
 
   # Setup the Map jobs 
   nblock = args.thread
-  elm_per_block = int((abs(args.nfiles)*input_file.nelm-1)/args.thread) + 1
+  elm_per_block = int((abs(params["io_files"])*input_file.nelm-1)/args.thread) + 1
   jobs = []
-  for j in range(abs(args.nfiles)):
-    if args.nfiles > 0:
+  for j in range(abs(int(params["io_files"]))):
+    if params["io_files"] > 0:
       args.fname = "{:s}/{:s}{:0{width}d}.f{:05d}".format(data_path, data_tag, j, frame, width=dir_width)
     else:
       args.fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, j, data_tag, j, frame, width=dir_width)
