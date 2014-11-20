@@ -20,33 +20,33 @@ if not args.display:
 import matplotlib.pyplot as plt
 
 """ Load the data """
-# Load params
-params = []
-for name in args.names:
-  with open("{:s}.json".format(name), 'r') as f:
-    params.append(json.load(f))
-    params[-1]['g'] = 9.8
-
 # Open results dictionary
 results = []
+params = []
 for name in args.names:
   fname = '{:s}-results.dat'.format(name)
   with open(fname, 'r') as f:
     results.append(json.load(f))
+  params.append(results[-1]["0.0"]["params"])
+  params[-1]['g'] = 9.8
 
 # Post-post processing
 from my_utils import extract_dict
+from my_utils import transpose_dict
 times = []; PeCs = []; TMaxs = []; Totals = []; hs_cabots = []; hs_visuals = []; hs_fits = []; Xis = []
+_new_results_ = []
 for res in results:
-  time, PeC, TMax, Total, hs_cabot, hs_visual, hs_fit, Xi = extract_dict(res)
-  times.append(time)
-  PeCs.append(PeC)
-  TMaxs.append(TMax)
-  Totals.append(Total)
-  hs_cabots.append(hs_cabot)
-  hs_visuals.append(hs_visual)
-  hs_fits.append(hs_fit)
-  Xis.append(Xi)
+  test = transpose_dict(res)
+  #time, PeC, TMax, Total, hs_cabot, hs_visual, hs_fit, Xi = extract_dict(res)
+  times.append(test["time"])
+  PeCs.append(test["PeCell"])
+  TMaxs.append(test["TMax"])
+  Totals.append(test["Total"])
+  hs_cabots.append(test["h_cabot"])
+  hs_visuals.append(test["h_visual"])
+  hs_fits.append(test["h_fit"])
+  Xis.append(test["Xi"])
+  _new_results_.append(test)
 
 # Numerical stability plot
 for j in range(len(args.names)):
@@ -56,46 +56,135 @@ for j in range(len(args.names)):
       break
 
 #params = results[0]['0.0']['params']
-image_y = 8
-image_x = 5*int(image_y * params[0]["shape_mesh"][0] / params[0]["shape_mesh"][2] + .5)
+image_y = 12
+clip_y = 10/16.
+image_x = len(args.names)*int(image_y * params[0]["shape_mesh"][0] / params[0]["shape_mesh"][2] / clip_y + .5)
 image_x = max( image_x,  image_y * 1050/1680 )
 image_x = min( image_x,  image_y * 1680/1050 )
 
-xtics = [params[j]["root_mesh"][0],params[j]["extent_mesh"][0]]
-ytics = [params[j]["root_mesh"][2], 0, params[j]["extent_mesh"][2]]
+ytics = [params[j]["root_mesh"][0],params[j]["extent_mesh"][0]]
+xtics = [params[j]["root_mesh"][2]*clip_y, 0, params[j]["extent_mesh"][2]*clip_y]
 
-Scs = [1, 7, 1]
-
+Scs = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+ylabels = ["$1$", "$\sqrt{2}$", "$2$", "$2 \sqrt{2}$", "$4$", "$4 \sqrt{2}$", "$8$", "$8 \sqrt{2}$", "foo", "bar", "foobar", "barfoo", "quoi?"]
 for i in range(args.frame, args.frame_end+1):
-  fig = plt.figure(figsize=(image_x,image_y))
+  fig = plt.figure(figsize=(image_y,image_x))
+  #fig = plt.figure(figsize=(image_x,image_y))
   fig.text(0.5,0.93,'Scalar',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
   for j in range(len(args.names)):
     with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
       npzfile = np.load(f)
-      ax = plt.subplot(1,len(args.names),j+1)
-      ax.imshow(npzfile['yslice'].transpose(), origin = 'lower',
-        interpolation='bicubic',
-        vmin = 0., vmax = 1.,
-        aspect = 'auto',
-        extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
-                params[j]["root_mesh"][2],params[j]["extent_mesh"][2]]
-               )
-      #ax.plot([params[j]["root_mesh"][0], params[j]["extent_mesh"][0]], [hs_visuals[j][i], hs_visuals[j][i]], linestyle='dashed', linewidth=1.0, color='w')
-      plt.xlim([params[j]["root_mesh"][0],params[j]["extent_mesh"][0]])
-      plt.ylim([params[j]["root_mesh"][2],params[j]["extent_mesh"][2]])
-      if j == 0:
-        plt.xticks(xtics, fontsize='large')
+      #ax = plt.subplot(1,len(args.names),j+1)
+      ax = plt.subplot(len(args.names),1,j+1)
+      dim = npzfile['yslice'].shape
+      if args.names[j] == "Nu04D04":
+       #ax.imshow(np.fliplr(npzfile['yslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))].transpose()), origin = 'lower',
+       ax.imshow(np.flipud(npzfile['yslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))]), origin = 'lower',
+         interpolation='bicubic',
+         vmin = 0., vmax = 1.,
+         aspect = 'auto',
+         extent=[
+                 params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y,
+                 params[j]["root_mesh"][0],params[j]["extent_mesh"][0]
+                ])
       else:
-        plt.xticks([])
+       #ax.imshow(npzfile['yslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))].transpose(), origin = 'lower',
+       ax.imshow(npzfile['yslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))], origin = 'lower',
+         interpolation='bicubic',
+         vmin = 0., vmax = 1.,
+         aspect = 'auto',
+         extent=[
+                 params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y,
+                 params[j]["root_mesh"][0],params[j]["extent_mesh"][0]
+                ])
+
+      #ax.xaxis.tick_top()
+      #ax.plot([params[j]["root_mesh"][0], params[j]["extent_mesh"][0]], [hs_visuals[j][i], hs_visuals[j][i]], linestyle='dashed', linewidth=1.0, color='w')
+      plt.ylim([params[j]["root_mesh"][0],params[j]["extent_mesh"][0]])
+      plt.xlim([params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y])
+      plt.ylabel(ylabels[j])
       if j == 0:
+        #plt.xticks(xtics, fontsize='large')
         plt.yticks(ytics, fontsize='large')
       else:
         plt.yticks([])
-      plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+        #plt.xticks([])
+      if j == len(args.names)-1:
+        #plt.yticks(ytics, fontsize='large')
+        plt.xticks(xtics, fontsize='large')
+      else:
+        #plt.yticks([])
+        plt.xticks([])
+      #plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
 
   plt.savefig("compare{:05d}-yslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
 
+
+ylabels = ["$1$", "$\sqrt{2}$", "$2$", "$2 \sqrt{2}$", "$4$", "$4 \sqrt{2}$", "$8$", "$8 \sqrt{2}$", "foo", "bar", "foobar", "barfoo", "quoi?"]
+for i in range(args.frame, args.frame_end+1):
+  fig = plt.figure(figsize=(image_y,image_x))
+  #fig = plt.figure(figsize=(image_x,image_y))
+  fig.text(0.5,0.93,'Vorticity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
+  for j in range(len(args.names)):
+    with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
+      npzfile = np.load(f)
+      #ax = plt.subplot(1,len(args.names),j+1)
+      ax = plt.subplot(len(args.names),1,j+1)
+      dim = npzfile['yuzslice'].shape
+      vorticity = (
+                npzfile['yuzslice'][2:-1,1:-2]
+              - npzfile['yuzslice'][0:-3,1:-2]
+              - npzfile['yuxslice'][1:-2,2:-1]
+              + npzfile['yuxslice'][1:-2,0:-3])/(2.*0.00390625)
+      if j == 0:
+        vort_max = np.max(np.max(vorticity))
+        vort_min = np.min(np.min(vorticity))
+
+      if args.names[j] == "Nu04D04":
+       #ax.imshow(np.fliplr(npzfile['yslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))].transpose()), origin = 'lower',
+       ax.imshow(np.flipud(vorticity[:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))]), origin = 'lower',
+         interpolation='bicubic',
+         vmin = vort_min, vmax = vort_max,
+         aspect = 'auto',
+         extent=[
+                 params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y,
+                 params[j]["root_mesh"][0],params[j]["extent_mesh"][0]
+                ])
+      else:
+       #ax.imshow(npzfile['yslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))].transpose(), origin = 'lower',
+       ax.imshow(vorticity[:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))], origin = 'lower',
+         interpolation='bicubic',
+         vmin = vort_min, vmax = vort_max,
+         aspect = 'auto',
+         extent=[
+                 params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y,
+                 params[j]["root_mesh"][0],params[j]["extent_mesh"][0]
+                ])
+
+      #ax.xaxis.tick_top()
+      #ax.plot([params[j]["root_mesh"][0], params[j]["extent_mesh"][0]], [hs_visuals[j][i], hs_visuals[j][i]], linestyle='dashed', linewidth=1.0, color='w')
+      plt.ylim([params[j]["root_mesh"][0],params[j]["extent_mesh"][0]])
+      plt.xlim([params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y])
+      plt.ylabel(ylabels[j])
+      if j == 0:
+        #plt.xticks(xtics, fontsize='large')
+        plt.yticks(ytics, fontsize='large')
+      else:
+        plt.yticks([])
+        #plt.xticks([])
+      if j == len(args.names)-1:
+        #plt.yticks(ytics, fontsize='large')
+        plt.xticks(xtics, fontsize='large')
+      else:
+        #plt.yticks([])
+        plt.xticks([])
+      #plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+
+  plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
+  plt.close(fig)
+
+"""
 for i in range(args.frame, args.frame_end+1):
   fig = plt.figure(figsize=(image_x,image_y))
   fig.text(0.5,0.93,'Vertical velocity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
@@ -103,13 +192,15 @@ for i in range(args.frame, args.frame_end+1):
     with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
       npzfile = np.load(f)
       ax = plt.subplot(1,len(args.names),j+1)
-      ax.imshow(npzfile['yuzslice'].transpose(), origin = 'lower',
+      dim = npzfile['yuzslice'].shape
+      ax.imshow(npzfile['yuzslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))].transpose(), origin = 'lower',
         interpolation='bicubic',
         aspect = 'auto',
         extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
-                params[j]["root_mesh"][2],params[j]["extent_mesh"][2]]
+                params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y]
                )
       if j == 0:
+        ax.xaxis.tick_top()
         plt.xticks(xtics, fontsize='large')
       else:
         plt.xticks([])
@@ -117,12 +208,13 @@ for i in range(args.frame, args.frame_end+1):
         plt.yticks(ytics, fontsize='large')
       else:
         plt.yticks([])
-      plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+      #plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
 
 
   plt.savefig("compare{:05d}-yuzslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
-
+"""
+"""
 for i in range(args.frame, args.frame_end+1):
   fig = plt.figure(figsize=(image_x,image_y))
   fig.text(0.5,0.93,'Vorticity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
@@ -149,21 +241,22 @@ for i in range(args.frame, args.frame_end+1):
 
   plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
-
+"""
 
 
 from os import devnull
 from subprocess import call
 foo = open(devnull, 'w')
-codec = "mpeg4"
-options = "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 300 -qscale 5 -pass 1 -strict experimental"
+codec = "png"
+options = " "
+#codec = "mpeg4"
+#options = "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 1 -qscale 5 -pass 1 -strict experimental -r 12"
 call("rm -f compare-yslice.mkv", shell=True)
 call("avconv -f image2 -i compare%05d-yslice.png -c:v {:s} {:s} compare-yslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
-call("rm -f compare-yuzslice.mkv", shell=True)
-call("avconv -f image2 -i compare%05d-yuzslice.png -c:v {:s} {:s} compare-yuzslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
+#call("rm -f compare-yuzslice.mkv", shell=True)
+#call("avconv -f image2 -i compare%05d-yuzslice.png -c:v {:s} {:s} compare-yuzslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
 call("rm -f compare-yvslice.mkv", shell=True)
 call("avconv -f image2 -i compare%05d-yvslice.png -c:v {:s} {:s} compare-yvslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
-
 
 
 '''
@@ -180,59 +273,249 @@ plt.savefig("{:s}-stability.png".format(args.name))
 colors = ['red', 'blue', 'green', 'cyan', 'magenta', 'yelow']
 
 # mixing zone analysis
-if True: 
-  from my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds, compute_Fr
-  alpha_cabots = []; alpha_visuals = []; alpha_quads = []
-  Fr_visuals = [];
+from my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds, compute_Fr
+alpha_cabots = []; alpha_visuals = []; alpha_quads = []
+Fr_visuals = [];
 
-  '''
-  args.names.append("Fit")
-  times.append(times[0])
-  params.append(params[0])
-  gt = 0.788314 * times[0]
-  hs_cabots.append(2*np.cosh(gt) * 0.001 / 64.)
-  hs_visuals.append(2*np.cosh(gt) * 0.001 / 64.)
-  hs_fits.append(2*np.cosh(gt) * 0.001 / 64.)
-  '''
+for i in range(len(args.names)):
+  alpha_cabots.append(np.array(compute_alpha(hs_cabots[i],  times[i])) / (0.5*params[i]['atwood']*params[i]['g']))
+  alpha_visuals.append(np.array(compute_alpha_quadfit(hs_visuals[i],  times[i])) / (0.5*params[i]['atwood']*params[i]['g']))
+  alpha_quads.append(np.array(compute_alpha_quadfit(hs_cabots[i],  times[i])) / (0.5*params[i]['atwood']*params[i]['g']))
+  Fr_visuals.append(np.array(compute_Fr(hs_visuals[i],  times[i])) / np.sqrt(0.5*params[i]['atwood']*params[i]['g']*params[i]['extent_mesh'][0]))
 
-  for i in range(len(args.names)):
-    alpha_cabots.append(np.array(compute_alpha(hs_cabots[i],  times[i])) / (params[i]['atwood']*params[i]['g']))
-    alpha_visuals.append(np.array(compute_alpha_quadfit(hs_visuals[i],  times[i])) / (params[i]['atwood']*params[i]['g']))
-    alpha_quads.append(np.array(compute_alpha_quadfit(hs_cabots[i],  times[i])) / (params[i]['atwood']*params[i]['g']))
-    Fr_visuals.append(np.array(compute_Fr(hs_visuals[i],  times[i])) / np.sqrt(params[i]['atwood']*params[i]['g']*params[i]['extent_mesh'][0]))
+for res in _new_results_:
+  res["alpha_cabot"]  = np.array(compute_alpha(        res["h_cabot"],  res["time"])) / (0.5*res["params"][0]['atwood']*res["params"][0]['g'])
+  res["alpha_visual"] = np.array(compute_alpha_quadfit(res["h_visual"],  res["time"])) / (0.5*res["params"][0]['atwood']*res["params"][0]['g'])
+  res["Fr_visual"] = np.array(compute_Fr(res["h_visual"], res["time"])) / np.sqrt(0.5*res["params"][0]['atwood']*res["params"][0]['g']*res["params"][0]['extent_mesh'][0])
+  res["Fr_cabot"] = np.array(compute_Fr(res["h_cabot"], res["time"])) / np.sqrt(0.5*res["params"][0]['atwood']*res["params"][0]['g']*res["params"][0]['extent_mesh'][0])
 
-  second_font = 'x-large'
+second_font = 'x-large'
 
-  times = times / np.sqrt(params[0]['atwood'] * params[0]['g'] * 2 * np.pi / params[0]['extent_mesh'][0])
+times = times / np.sqrt(0.5*params[0]['atwood'] * params[0]['g'] * 2 * np.pi / params[0]['extent_mesh'][0])
 
-  plt.figure()
-  ax1 = plt.subplot(1,2,1)
-  plt.xlabel('$t / \\sqrt{A g k}$', fontsize = second_font)
-  plt.ylabel('$h / \\lambda$', fontsize = 'xx-large')
-  plt.ylim([0., max([np.max(a) for a in hs_cabots])/params[i]['extent_mesh'][0]]) 
-  for i in range(len(args.names)):
-    ax1.plot(times[i], np.array(hs_visuals[i])/params[i]['extent_mesh'][0], label="Sc = {:d}".format(Scs[i]))
-  ax1.legend(loc=2, fontsize = second_font)
 
-  ax2 = plt.subplot(1,2,2)
-  ax2.yaxis.tick_right()
-  ax2.yaxis.set_label_position("right")
-  plt.xlabel('$t / \\sqrt{A g k}$', fontsize = second_font)
-  plt.ylabel('$\dot{h} / \sqrt{A g \\lambda}$', fontsize = 'xx-large')
-  plt.ylim([0., max([np.max(a) for a in Fr_visuals])]) 
-  for i in range(len(args.names)):
-    ax2.plot(times[i], Fr_visuals[i])
-  plt.savefig("compare-h.png", bbox_inches="tight")
+from plots import plot_spread
 
-  plt.figure()
-  ax3 = plt.subplot(1,1,1)
-  plt.xlabel('$t / \\sqrt{A g k}$', fontsize = second_font)
-  plt.ylabel('$\Xi$', fontsize = 'xx-large', rotation='horizontal')
-  plt.ylim([0,1.])
-  for i in range(len(args.names)):
-    ax3.plot(times[i], Xis[i], label="Sc = {:d}".format(Scs[i]))
-  ax3.legend(loc=2, fontsize = second_font)
-  plt.savefig("compare-Xi.png", bbox_inches="tight")
+split = 3
+gamma = 1./np.sqrt(np.pi*res["params"][0]['atwood']*res["params"][0]['g']/res["params"][0]['extent_mesh'][0])
+
+tmax = max([np.max(a["time"]) for a in _new_results_]) 
+hmax = max([np.max(a["h_visual"]) for a in _new_results_]) 
+Fmax = max([np.max(a["Fr_visual"]) for a in _new_results_]) 
+Xmax = max([np.max(a["Xi"]) for a in _new_results_]) 
+
+tend = 84
+labels = ["$Sc = 2, \quad \\nu = 2$", "$Sc = 1, \quad \\nu = \sqrt{2}$"]
+#labels = ["$Sc = 8, \quad \\nu = 8$", "$Sc = 1, \quad \\nu = 4\sqrt{2}$"]
+plot_spread(_new_results_, "h_visual",  split, tend, "compare-h-full.png",
+            xscale = gamma,
+            xmax = tmax,
+            yscale = res["params"][0]['extent_mesh'][0], 
+            ymax = hmax,
+            ylabel = "$h / \lambda$",
+            extra_labels = labels)
+plot_spread(_new_results_, "Fr_visual", split, tend, "compare-Fr-full.png", 
+            xscale = gamma,
+            xmax = tmax,
+            ymax = Fmax,
+            ylabel = "$\dot{h} /\sqrt{A g \lambda}$",
+            extra_labels = labels)
+plot_spread(_new_results_, "Xi",        split, tend, "compare-Xi-full.png",
+            xscale = gamma,
+            xmax = tmax,
+            ymax = 1.,
+            ylabel = "$\Xi$",
+            extra_labels = labels)
+
+labels = ["$Sc = 2, \quad \\nu = 2$"]
+plot_spread(_new_results_[:-1], "h_visual",  split, tend, "compare-h-test.png",
+            xscale = gamma,
+            xmax = tmax,
+            yscale = res["params"][0]['extent_mesh'][0], 
+            ymax = hmax,
+            ylabel = "$h / \lambda$",
+            extra_labels = labels)
+plot_spread(_new_results_[:-1], "Fr_visual", split, tend, "compare-Fr-test.png", 
+            xscale = gamma,
+            xmax = tmax,
+            ymax = Fmax,
+            ylabel = "$\dot{h} /\sqrt{A g \lambda}$",
+            extra_labels = labels)
+plot_spread(_new_results_[:-1], "Xi",        split, tend, "compare-Xi-test.png",
+            xscale = gamma,
+            xmax = tmax,
+            ymax = 1.,
+            ylabel = "$\Xi$",
+            extra_labels = labels)
+labels = []
+plot_spread(_new_results_[:-2], "h_visual",  split, tend, "compare-h-train.png",
+            xscale = gamma,
+            xmax = tmax,
+            yscale = res["params"][0]['extent_mesh'][0], 
+            ymax = hmax,
+            ylabel = "$h / \lambda$",
+            extra_labels = labels)
+plot_spread(_new_results_[:-2], "Fr_visual", split, tend, "compare-Fr-train.png", 
+            xscale = gamma,
+            xmax = tmax,
+            ymax = Fmax,
+            ylabel = "$\dot{h} /\sqrt{A g \lambda}$",
+            extra_labels = labels)
+plot_spread(_new_results_[:-2], "Xi",        split, tend, "compare-Xi-train.png",
+            xscale = gamma,
+            xmax = tmax,
+            ymax = 1.,
+            ylabel = "$\Xi$",
+            extra_labels = labels)
+
+
+plt.figure(figsize=(8,8))
+ax1 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$h / \\lambda$', fontsize = 'xx-large')
+plt.ylim([0., max([np.max(a) for a in hs_cabots])/params[i]['extent_mesh'][0]]) 
+for res in _new_results_:
+  res["Sc"] = res["params"][0]["viscosity"]/res["params"][0]["conductivity"]
+  res["Nu"] = res["params"][0]["viscosity"]/5e-5
+  ax1.plot(res["time"]/gamma, 
+          # np.array(res["h_cabot"])/res["params"][0]['extent_mesh'][0], 
+           np.array(res["h_visual"])/res["params"][0]['extent_mesh'][0], 
+           label="Nu = {:d}".format(int(res["Nu"]+.5))
+          )
+ax1.legend(loc=2, fontsize = second_font)
+plt.savefig("compare-h.png", bbox_inches="tight")
+
+plt.figure(figsize=(8,8))
+ax1 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$h / \\lambda$', fontsize = 'xx-large')
+plt.ylim([0., max([np.max(a) for a in hs_cabots])/params[i]['extent_mesh'][0]]) 
+for res in _new_results_:
+  ax1.plot(res["time"]/gamma, 
+          # np.array(res["h_cabot"])/res["params"][0]['extent_mesh'][0], 
+           np.array(res["h_visual"])/res["params"][0]['extent_mesh'][0], 
+           color = 'black'
+          )
+plt.savefig("compare-h-where.png", bbox_inches="tight")
+
+plt.figure(figsize=(8,8))
+ax1 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$h / \\lambda$', fontsize = 'xx-large')
+plt.ylim([0., max([np.max(a) for a in hs_cabots])/params[i]['extent_mesh'][0]]) 
+for res in _new_results_[0:-2]:
+  ax1.plot(res["time"]/gamma, 
+          # np.array(res["h_cabot"])/res["params"][0]['extent_mesh'][0], 
+           np.array(res["h_visual"])/res["params"][0]['extent_mesh'][0], 
+           color = 'black'
+          )
+ax1.plot(_new_results_[-2]["time"]/gamma, 
+        # np.array(res["h_cabot"])/res["params"][0]['extent_mesh'][0], 
+         np.array(_new_results_[-2]["h_visual"])/res["params"][0]['extent_mesh'][0], 
+         color = 'red'
+        )
+plt.savefig("compare-h-waldo.png", bbox_inches="tight")
+
+plt.figure(figsize=(8,8))
+ax2 = plt.subplot(1,1,1)
+#ax2.yaxis.tick_right()
+#ax2.yaxis.set_label_position("right")
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$\dot{h} / \sqrt{A g \\lambda}$', fontsize = 'xx-large')
+plt.ylim([0., max([np.max(a) for a in Fr_visuals])]) 
+for i in range(len(_new_results_)):
+  res = _new_results_[i]
+  #ax2.plot(res["time"], res["Fr_cabot"],
+  ax2.plot(res["time"]/gamma, res["Fr_visual"],
+           label=ylabels[i]
+          )
+ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
+         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
+          label='PF Model')
+ax2.legend(loc=2, fontsize = second_font)
+plt.savefig("compare-Fr.png", bbox_inches="tight")
+
+plt.figure(figsize=(8,8))
+ax2 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$\dot{h} / \sqrt{A g \\lambda}$', fontsize = 'xx-large')
+plt.ylim([0., max([np.max(a) for a in Fr_visuals])]) 
+for i in range(len(_new_results_)):
+  res = _new_results_[i]
+  #ax2.plot(res["time"], res["Fr_cabot"],
+  ax2.plot(res["time"]/gamma, res["Fr_visual"],
+           color = 'black'
+          )
+ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
+         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
+         color = 'green',
+         label='PF Model')
+ax2.legend(loc=2, fontsize = second_font)
+plt.savefig("compare-Fr-where.png", bbox_inches="tight")
+
+
+plt.figure(figsize=(8,8))
+ax2 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$\dot{h} / \sqrt{A g \\lambda}$', fontsize = 'xx-large')
+plt.ylim([0., max([np.max(a) for a in Fr_visuals])]) 
+for i in range(len(_new_results_)-2):
+  res = _new_results_[i]
+  #ax2.plot(res["time"], res["Fr_cabot"],
+  ax2.plot(res["time"]/gamma, res["Fr_visual"],
+           color = 'black'
+          )
+ax2.plot(_new_results_[-2]["time"]/gamma, 
+         _new_results_[-2]["Fr_visual"],
+           color = 'red'
+          )
+ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
+         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
+         color = 'green',
+         label='PF Model')
+ax2.legend(loc=2, fontsize = second_font)
+plt.savefig("compare-Fr-waldo.png", bbox_inches="tight")
+
+
+plt.figure(figsize=(8,8))
+ax3 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$\Xi$', fontsize = 'xx-large', rotation='horizontal')
+plt.ylim([0,1.])
+for res in _new_results_:
+  ax3.plot(res["time"]/gamma, res["Xi"],
+           label="Nu = {:d}".format(int(res["Nu"]+.5))
+          )
+ax3.legend(loc=4, fontsize = second_font)
+plt.savefig("compare-Xi.png", bbox_inches="tight")
+
+plt.figure(figsize=(8,8))
+ax3 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$\Xi$', fontsize = 'xx-large', rotation='horizontal')
+plt.ylim([0,1.])
+for res in _new_results_:
+  ax3.plot(res["time"]/gamma, res["Xi"],
+           color = 'black'
+          )
+plt.savefig("compare-Xi-where.png", bbox_inches="tight")
+
+plt.figure(figsize=(8,8))
+ax3 = plt.subplot(1,1,1)
+plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
+plt.ylabel('$\Xi$', fontsize = 'xx-large', rotation='horizontal')
+plt.ylim([0,1.])
+for res in _new_results_[0:-2]:
+  ax3.plot(res["time"]/gamma, res["Xi"],
+           color = 'black'
+          )
+ax3.plot(_new_results_[-2]["time"]/gamma, 
+         _new_results_[-2]["Xi"],
+         color = 'red'
+        )
+
+plt.savefig("compare-Xi-waldo.png", bbox_inches="tight")
+
 
 '''
   gamma = 0.8822

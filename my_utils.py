@@ -199,4 +199,17 @@ def extract_dict(results):
   hs_fit = [d['h_fit'] for d in vals]
   Xi = [d['Xi'] for d in vals]
 
+
   return times, PeCs, TMaxs, Totals, hs_cabot, hs_visual, hs_fit, Xi
+
+def transpose_dict(results):
+  import numpy as np
+  results_with_times = sorted([[float(elm[0]), elm[1]] for elm in results.items()])
+  times, vals = zip(*results_with_times)
+
+  ans = {} 
+  ans["time"] = np.array(times, dtype=np.float64)
+  for key in vals[0].keys():
+    ans[key] = np.array([d[key] for d in vals])
+
+  return ans
