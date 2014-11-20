@@ -29,6 +29,7 @@ class Grid:
 
     # Slice information (add anisotropy tensor (<u_i u_j>/<u_k u_k>)
     self.f_xy       = np.zeros(self.shape[2])
+    self.ff_xy      = np.zeros(self.shape[2])
     self.vv_xy      = np.zeros((self.shape[2],6), order='F')
     self.yind       = int(3*self.shape[1]/4. + .5)
     self.yslice     = np.zeros((self.shape[0], self.shape[2]), order='F')
@@ -57,6 +58,7 @@ class Grid:
     self.v2          += part.v2
     self.pdf         += part.pdf
     self.f_xy        += part.f_xy
+    self.ff_xy       += part.ff_xy
     self.vv_xy       += part.vv_xy
     self.yslice      += part.yslice
     self.ypslice     += part.ypslice
@@ -84,6 +86,7 @@ class Grid:
 
     # element-wise operations and slices
     self.f_xy       = np.zeros(self.shape[2])
+    self.ff_xy      = np.zeros(self.shape[2])
     self.yslice     = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.ypslice    = np.zeros((self.shape[0], self.shape[2]), order='F')
     self.yuzslice   = np.zeros((self.shape[0], self.shape[2]), order='F') 
@@ -102,6 +105,7 @@ class Grid:
       uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
 
       self.f_xy[ root[2]:root[2]+self.order]   += np.sum(f_tmp, (0,1))
+      self.ff_xy[ root[2]:root[2]+self.order]  += np.sum(f_tmp*(1.-f_tmp), (0,1))
       self.vv_xy[root[2]:root[2]+self.order,0] += np.sum(ux_tmp*ux_tmp, (0,1))
       self.vv_xy[root[2]:root[2]+self.order,1] += np.sum(ux_tmp*uy_tmp, (0,1))
       self.vv_xy[root[2]:root[2]+self.order,2] += np.sum(ux_tmp*uz_tmp, (0,1))
@@ -440,7 +444,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
     ax1.plot(modes.ravel(), spectrum.ravel(), '+', label='I')
   '''
 
-def mixing_zone(grid, thresh = .01):
+def mixing_zone(grid, thresh = .05):
   import numpy as np
   from my_utils import find_root
   from tictoc import tic, toc
@@ -480,10 +484,14 @@ def mixing_zone(grid, thresh = .01):
 
   tic()
   X = float(grid.f_m/(h*grid.shape[0]*grid.shape[1]))
+  lint = int((.5-h_visual/L)*grid.shape[2]+.5)
+  hint = int((.5+h_visual/L)*grid.shape[2]+.5)
+  T = float(np.sum(grid.ff_xy[lint:hint] / (f_xy[lint:hint] * (1-f_xy[lint:hint])))) 
+  T = T * L / (2.*h_visual) / np.prod(grid.shape)
   Y = float(grid.f_total/(np.prod(grid.shape)))
   toc('mix_agg')
 
-  return h_cabot, h_visual, h_fit, X, Y
+  return h_cabot, h_visual, h_fit, X, T, Y
 
 def energy_budget(grid):
   import numpy as np

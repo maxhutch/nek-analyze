@@ -96,11 +96,13 @@ def post_series(results, params, args):
 
     plt.figure()
     Xs = [d['Xi'] for d in vals]
+    Ts = [d['Theta'] for d in vals]
     ax1 = plt.subplot(1,2,1)
     plt.ylim([0.,1.])
     ax1.plot(times, Xs)
+    ax1.plot(times, Ts)
     plt.xlabel('Time (s)')
-    plt.ylabel('Xi')
+    plt.ylabel('$\Xi, \Theta$')
 
     Re_visual = np.array(compute_reynolds(hs_visual, times)) / (params['viscosity'])
     ax2 = plt.subplot(1,2,2)
@@ -180,7 +182,7 @@ def post_frame(ans, args, params, frame, time):
     toc('contour')
 
   tic()
-  ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
+  ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Theta'], ans['Total'] = mixing_zone(data)
   plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
   toc('mixing_zone')
 
@@ -214,23 +216,6 @@ def post_frame(ans, args, params, frame, time):
 
   toc('plot')
 
-  tic()
-  ans['h_cabot'], ans['h_visual'], ans['h_fit'], ans['Xi'], ans['Total'] = mixing_zone(data)
-  plot_prof(data, "{:s}{:05d}-prof.png".format(args.name, frame), -1./(2. * ans['h_fit']))
-  toc('mixing_zone')
-
-  if not args.series:
-    tic()
-    print("Mixing (h_cab,h_vis,h_fit,xi): {:f} {:f} {:f}".format(ans['h_cabot'],ans['h_visual'],ans['h_fit'], ans['Xi']))
-    toc('mixing zone')
-
-  tic()
-  ans['P'], ans['K'] = energy_budget(data)
-  toc('energy_budget')
-
-  if not args.series:
-    print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
-
   '''
   ans['anis_T'] = ans['data'].vv_xy / (ans['data'].vv_xy[:,0] + ans['data'].vv_xy[:,3] + ans['data'].vv_xy[:,5])
   ans['anis_T'][0,:] -= 1./3.
@@ -250,7 +235,8 @@ def post_frame(ans, args, params, frame, time):
              yuzslice = ans['data'].yuzslice, 
 	     zslice   = ans['data'].zslice, 
 	     zsliceu  = ans['data'].zsliceu, 
-	     f_xy     = ans['data'].f_xy
+	     f_xy     = ans['data'].f_xy,
+	     ff_xy    = ans['data'].ff_xy
 	    )
 
   del ans['data']
