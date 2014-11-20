@@ -213,3 +213,17 @@ def transpose_dict(results):
     ans[key] = np.array([d[key] for d in vals])
 
   return ans
+
+
+def make_movie(frame_name, movie_name, codec = "png", options = ""):
+  from os import devnull
+  from subprocess import call
+  foo = open(devnull, 'w')
+  #codec = "mpeg4"
+  #options = "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 1 -qscale 5 -pass 1 -strict experimental -r 12"
+  call("rm -f {:s}".format(movie_name), shell=True)
+  call("avconv -f image2 -i {:s} -c:v {:s} {:s} {:s}".format(frame_name, codec, options, movie_name), shell=True, stdout = foo, stderr = foo)
+
+  return
+
+

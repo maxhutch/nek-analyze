@@ -184,79 +184,9 @@ for i in range(args.frame, args.frame_end+1):
   plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
 
-"""
-for i in range(args.frame, args.frame_end+1):
-  fig = plt.figure(figsize=(image_x,image_y))
-  fig.text(0.5,0.93,'Vertical velocity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
-  for j in range(len(args.names)):
-    with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
-      npzfile = np.load(f)
-      ax = plt.subplot(1,len(args.names),j+1)
-      dim = npzfile['yuzslice'].shape
-      ax.imshow(npzfile['yuzslice'][:,int(dim[1]*.5*(1-clip_y)):int(dim[1]*.5*(1+clip_y))].transpose(), origin = 'lower',
-        interpolation='bicubic',
-        aspect = 'auto',
-        extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
-                params[j]["root_mesh"][2]*clip_y,params[j]["extent_mesh"][2]*clip_y]
-               )
-      if j == 0:
-        ax.xaxis.tick_top()
-        plt.xticks(xtics, fontsize='large')
-      else:
-        plt.xticks([])
-      if j == 0:
-        plt.yticks(ytics, fontsize='large')
-      else:
-        plt.yticks([])
-      #plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
-
-
-  plt.savefig("compare{:05d}-yuzslice.png".format(i), bbox_inches="tight")
-  plt.close(fig)
-"""
-"""
-for i in range(args.frame, args.frame_end+1):
-  fig = plt.figure(figsize=(image_x,image_y))
-  fig.text(0.5,0.93,'Vorticity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
-  for j in range(len(args.names)):
-    with open("{:s}{:05d}-raw.npz".format(args.names[j], i), 'rb') as f:
-      npzfile = np.load(f)
-      ax = plt.subplot(1,len(args.names),j+1)
-      ax.imshow(npzfile['yvslice'].transpose(), origin = 'lower',
-        interpolation='bicubic',
-        aspect = 'auto',
-        extent=[params[j]["root_mesh"][0],params[j]["extent_mesh"][0],
-                params[j]["root_mesh"][2],params[j]["extent_mesh"][2]]
-               )
-      if j == 0:
-        plt.xticks(xtics, fontsize='large')
-      else:
-        plt.xticks([])
-      if j == 0:
-        plt.yticks(ytics, fontsize='large')
-      else:
-        plt.yticks([])
-      plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
-
-
-  plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
-  plt.close(fig)
-"""
-
-
-from os import devnull
-from subprocess import call
-foo = open(devnull, 'w')
-codec = "png"
-options = " "
-#codec = "mpeg4"
-#options = "-mbd rd -flags +mv4+aic -trellis 2 -cmp 2 -subcmp 2 -g 1 -qscale 5 -pass 1 -strict experimental -r 12"
-call("rm -f compare-yslice.mkv", shell=True)
-call("avconv -f image2 -i compare%05d-yslice.png -c:v {:s} {:s} compare-yslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
-#call("rm -f compare-yuzslice.mkv", shell=True)
-#call("avconv -f image2 -i compare%05d-yuzslice.png -c:v {:s} {:s} compare-yuzslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
-call("rm -f compare-yvslice.mkv", shell=True)
-call("avconv -f image2 -i compare%05d-yvslice.png -c:v {:s} {:s} compare-yvslice.mkv".format(codec, options), shell=True, stdout = foo, stderr = foo)
+from my_utils import make_movie
+make_movie("compare%05d-yslice.png",  "compare-yslice.mkv")
+make_movie("compare%05d-yvslice.png", "compare-yvslice.mkv")
 
 
 '''
