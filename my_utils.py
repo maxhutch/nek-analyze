@@ -4,6 +4,20 @@ def find_root(x, y, y0 = .5, desired_resolution = None):
   import numpy as np
   if desired_resolution == None:
     desired_resolution = abs(x[1] - x[0])/64.
+  if y0 < 0.5:
+    i_high = x.shape[0]
+    i_low = i_high - 6
+    while y[i_low] < y0:
+      i_high = i_high - 1
+      i_low = i_low - 1
+  else:
+    i_low = 0
+    i_high = i_low + 6
+    while y[i_high] > y0:
+      i_high = i_high + 1
+      i_low = i_low + 1
+  
+  """
   i_low = 0
   i_high = x.shape[0]
   failsafe = 0
@@ -17,6 +31,7 @@ def find_root(x, y, y0 = .5, desired_resolution = None):
       i_low = i_1
     if y[i_2] < y0:
       i_high = i_2
+  """
 
   f = interpolate.interp1d(x[i_low:i_high], y[i_low:i_high], kind='cubic')
   x_low  = np.min(x[i_low:i_high])
