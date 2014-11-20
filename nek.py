@@ -11,8 +11,9 @@ class NekFile():
     self.x_file = open(fname, 'rb')
     self.header = self.x_file.read(132)
     htoks = str(self.header).split()
-    self.nelm = int(htoks[5])
+    self.word_size = int(htoks[1])
     self.norder = int(htoks[2])
+    self.nelm = int(htoks[5])
     self.time = float(htoks[7])
     if htoks[0] == "b'#max":
       self.padded = 8 * (2**20)
@@ -30,9 +31,9 @@ class NekFile():
     byteswap = abs(self.test_tuple[0] - 6.543210029) > 0.00001
     if byteswap:
       print("  * swapping bytes")
-      self.ty = '>f4'
+      self.ty = '>f{:1d}'.format(self.word_size)
     else:
-      self.ty = 'f4'
+      self.ty = 'f{:1d}'.format(self.word_size)
     self.bformat = None
 
     # Test opening the file
@@ -59,6 +60,7 @@ class NekFile():
     self.x_file.write(self.test)
     self.ty = base.ty
     self.bformat = base.bformat
+    self.word_size = base.word_size
 
     # Test opening the file
     self.current_elm = 0
@@ -113,10 +115,10 @@ class NekFile():
       pad = 136 + self.nelm*4
 
     #        offset -v          header and map -v        field -v
-    self.x_file.seek(ielm*12*self.norder**3 + pad,                 0) 
-    self.u_file.seek(ielm*12*self.norder**3 + pad + 3*self.ntot*4, 0) 
-    self.p_file.seek(ielm*4 *self.norder**3 + pad + 6*self.ntot*4, 0) 
-    self.t_file.seek(ielm*4 *self.norder**3 + pad + 7*self.ntot*4, 0) 
+    self.x_file.seek(ielm*self.word_size*3*self.norder**3 + pad,                 0) 
+    self.u_file.seek(ielm*self.word_size*3*self.norder**3 + pad + 3*self.ntot*self.word_size, 0) 
+    self.p_file.seek(ielm*self.word_size  *self.norder**3 + pad + 6*self.ntot*self.word_size, 0) 
+    self.t_file.seek(ielm*self.word_size  *self.norder**3 + pad + 7*self.ntot*self.word_size, 0) 
 
     return
 
