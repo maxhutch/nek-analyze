@@ -64,8 +64,8 @@ def plot_spread(results, key, split, tend, fname,
   colors = ['red', 'blue', 'green']
   for i in range(extra_plots):
     foo, = ax1.plot(
-      results[spread_end+i+1]["time"]/xscale,
-      results[spread_end+i+1][key]/yscale,
+      results[spread_end+i+1]["time"][0:-3]/xscale,
+      results[spread_end+i+1][key][0:-3]/yscale,
       color = colors[i])
     handles.append(foo)
 

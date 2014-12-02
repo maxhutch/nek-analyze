@@ -57,7 +57,7 @@ for j in range(len(args.names)):
 
 #params = results[0]['0.0']['params']
 image_y = 12
-clip_y = 10/16.
+clip_y = 12/16.
 image_x = len(args.names)*int(image_y * params[0]["shape_mesh"][0] / params[0]["shape_mesh"][2] / clip_y + .5)
 image_x = max( image_x,  image_y * 1050/1680 )
 image_x = min( image_x,  image_y * 1680/1050 )
@@ -67,6 +67,7 @@ xtics = [params[j]["root_mesh"][2]*clip_y, 0, params[j]["extent_mesh"][2]*clip_y
 
 Scs = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ylabels = ["$1$", "$\sqrt{2}$", "$2$", "$2 \sqrt{2}$", "$4$", "$4 \sqrt{2}$", "$8$", "$8 \sqrt{2}$", "foo", "bar", "foobar", "barfoo", "quoi?"]
+y2labels = ["2000", "1414", "1000", "707", "500", "354", "250", "177", "foo", "bar", "foobar", "barfoo", "quoi?"]
 for i in range(args.frame, args.frame_end+1):
   fig = plt.figure(figsize=(image_y,image_x))
   #fig = plt.figure(figsize=(image_x,image_y))
@@ -116,13 +117,16 @@ for i in range(args.frame, args.frame_end+1):
         #plt.yticks([])
         plt.xticks([])
       #plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+      ax2 = ax.twinx()
+      ax2.set_ylabel(y2labels[j])
+      plt.yticks([])
 
   plt.savefig("compare{:05d}-yslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
 
 
 ylabels = ["$1$", "$\sqrt{2}$", "$2$", "$2 \sqrt{2}$", "$4$", "$4 \sqrt{2}$", "$8$", "$8 \sqrt{2}$", "foo", "bar", "foobar", "barfoo", "quoi?"]
-for i in range(args.frame, args.frame_end+1):
+for i in range(args.frame, min(args.frame_end+1, 82)):
   fig = plt.figure(figsize=(image_y,image_x))
   #fig = plt.figure(figsize=(image_x,image_y))
   fig.text(0.5,0.93,'Vorticity',horizontalalignment='center', verticalalignment='top', fontsize='xx-large')
@@ -180,6 +184,9 @@ for i in range(args.frame, args.frame_end+1):
         #plt.yticks([])
         plt.xticks([])
       #plt.xlabel("Sc = {:d}".format(Scs[j]), fontsize='xx-large')
+      ax2 = ax.twinx()
+      ax2.set_ylabel(y2labels[j])
+      plt.yticks([])
 
   plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
@@ -207,6 +214,22 @@ from my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds, com
 alpha_cabots = []; alpha_visuals = []; alpha_quads = []
 Fr_visuals = [];
 
+from my_utils import find_root
+thresh = 0.01
+zs = np.linspace(params[0]['root_mesh'][2], 
+                 params[0]['extent_mesh'][2], 
+                 params[0]['shape_mesh'][2]*8, endpoint = False)
+for i in range(len(args.names)):
+  nframes = times[i].size
+  for j in range(nframes):
+    with open("{:s}{:05d}-raw.npz".format(args.names[i], j+1), 'rb') as f:
+      npzfile = np.load(f)
+      f_normed = npzfile['f_xy'] / (64 * params[0]['shape_mesh'][0] * params[0]['shape_mesh'][1])
+      _new_results_[i]["h_visual"][j] = ( find_root(zs, f_normed, y0 = thresh)
+                                        - find_root(zs, f_normed, y0 = 1-thresh)) / 2.
+
+ 
+
 for i in range(len(args.names)):
   alpha_cabots.append(np.array(compute_alpha(hs_cabots[i],  times[i])) / (0.5*params[i]['atwood']*params[i]['g']))
   alpha_visuals.append(np.array(compute_alpha_quadfit(hs_visuals[i],  times[i])) / (0.5*params[i]['atwood']*params[i]['g']))
@@ -226,7 +249,7 @@ times = times / np.sqrt(0.5*params[0]['atwood'] * params[0]['g'] * 2 * np.pi / p
 
 from plots import plot_spread
 
-split = 3
+split = 4
 gamma = 1./np.sqrt(np.pi*res["params"][0]['atwood']*res["params"][0]['g']/res["params"][0]['extent_mesh'][0])
 
 tmax = max([np.max(a["time"]) for a in _new_results_]) 
@@ -235,8 +258,9 @@ Fmax = max([np.max(a["Fr_visual"]) for a in _new_results_])
 Xmax = max([np.max(a["Xi"]) for a in _new_results_]) 
 
 tend = 84
-labels = ["$Sc = 2, \quad \\nu = 2$", "$Sc = 1, \quad \\nu = \sqrt{2}$"]
-#labels = ["$Sc = 8, \quad \\nu = 8$", "$Sc = 1, \quad \\nu = 4\sqrt{2}$"]
+#tend = 110
+#labels = ["$Sc = 2, \quad \\nu = 2\sqrt{2}$", "$Sc = 1, \quad \\nu = 2$"]
+labels = ["$Sc = 8, \quad \\nu = 8$", "$Sc = 1, \quad \\nu = 4\sqrt{2}$"]
 plot_spread(_new_results_, "h_visual",  split, tend, "compare-h-full.png",
             xscale = gamma,
             xmax = tmax,
@@ -342,26 +366,36 @@ for res in _new_results_[0:-2]:
 ax1.plot(_new_results_[-2]["time"]/gamma, 
         # np.array(res["h_cabot"])/res["params"][0]['extent_mesh'][0], 
          np.array(_new_results_[-2]["h_visual"])/res["params"][0]['extent_mesh'][0], 
-         color = 'red'
+         color = 'red', linewidth=3
         )
 plt.savefig("compare-h-waldo.png", bbox_inches="tight")
 
-plt.figure(figsize=(8,8))
+plt.figure(figsize=(10,10))
 ax2 = plt.subplot(1,1,1)
 #ax2.yaxis.tick_right()
 #ax2.yaxis.set_label_position("right")
+y2labels = ["Re = 2000", "Re = 1414", "Re = 1000", "Re = 707", "Re = 500", "Re = 354", "Re = 250", "Re = 177", "foo", "bar", "foobar", "barfoo", "quoi?"]
 plt.xlabel('$t \\sqrt{A g k}$', fontsize = second_font)
 plt.ylabel('$\dot{h} / \sqrt{A g \\lambda}$', fontsize = 'xx-large')
 plt.ylim([0., max([np.max(a) for a in Fr_visuals])]) 
 for i in range(len(_new_results_)):
   res = _new_results_[i]
   #ax2.plot(res["time"], res["Fr_cabot"],
-  ax2.plot(res["time"]/gamma, res["Fr_visual"],
-           label=ylabels[i]
+  if i == split:
+    ax2.plot(res["time"][0:-3]/gamma, 
+           res["Fr_visual"][0:-3],
+           linewidth=3.0,
+           label=y2labels[i]
           )
-ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
-         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
-          label='PF Model')
+
+  else:
+    ax2.plot(res["time"][0:-3]/gamma, 
+           res["Fr_visual"][0:-3],
+           label=y2labels[i]
+          )
+#ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
+#         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
+#          label='PF Model')
 ax2.legend(loc=2, fontsize = second_font)
 plt.savefig("compare-Fr.png", bbox_inches="tight")
 
@@ -373,13 +407,14 @@ plt.ylim([0., max([np.max(a) for a in Fr_visuals])])
 for i in range(len(_new_results_)):
   res = _new_results_[i]
   #ax2.plot(res["time"], res["Fr_cabot"],
-  ax2.plot(res["time"]/gamma, res["Fr_visual"],
+  ax2.plot(res["time"][0:-3]/gamma,
+           res["Fr_visual"][0:-3],
            color = 'black'
           )
-ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
-         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
-         color = 'green',
-         label='PF Model')
+#ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
+#         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
+#         color = 'green',
+#         label='PF Model')
 ax2.legend(loc=2, fontsize = second_font)
 plt.savefig("compare-Fr-where.png", bbox_inches="tight")
 
@@ -392,17 +427,17 @@ plt.ylim([0., max([np.max(a) for a in Fr_visuals])])
 for i in range(len(_new_results_)-2):
   res = _new_results_[i]
   #ax2.plot(res["time"], res["Fr_cabot"],
-  ax2.plot(res["time"]/gamma, res["Fr_visual"],
+  ax2.plot(res["time"][0:-3]/gamma, res["Fr_visual"][0:-3],
            color = 'black'
           )
-ax2.plot(_new_results_[-2]["time"]/gamma, 
-         _new_results_[-2]["Fr_visual"],
-           color = 'red'
+ax2.plot(_new_results_[-2]["time"][0:-3]/gamma, 
+         _new_results_[-2]["Fr_visual"][0:-3],
+           color = 'red', linewidth=3
           )
-ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
-         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
-         color = 'green',
-         label='PF Model')
+#ax2.plot([0,_new_results_[0]["time"][-1]/gamma], 
+#         [1./np.sqrt(np.pi), 1./np.sqrt(np.pi)],
+#         color = 'green',
+#         label='PF Model')
 ax2.legend(loc=2, fontsize = second_font)
 plt.savefig("compare-Fr-waldo.png", bbox_inches="tight")
 
@@ -441,7 +476,7 @@ for res in _new_results_[0:-2]:
           )
 ax3.plot(_new_results_[-2]["time"]/gamma, 
          _new_results_[-2]["Xi"],
-         color = 'red'
+         color = 'red', linewidth=3
         )
 
 plt.savefig("compare-Xi-waldo.png", bbox_inches="tight")
