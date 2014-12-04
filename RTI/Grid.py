@@ -78,9 +78,12 @@ class Grid:
 
     # First, compute aggregate quantities like total kinetic energy
     tic()
-    self.f_total  = np.sum(f_elm)
-    self.f_m      = np.sum(np.minimum(f_elm*2., (1.-f_elm)*2.))
-    self.v2       = np.sum(np.square(ux_elm)) + np.sum(np.square(uy_elm)) + np.sum(np.square(uz_elm))
+    self.f_total  = np.add.reduce(f_elm, axis=None)
+    self.f_m      = np.add.reduce(np.minimum(f_elm*2., (1.-f_elm)*2.), axis=None)
+    self.v2       = (np.add.reduce(np.square(ux_elm), axis=None) 
+                   + np.add.reduce(np.square(uy_elm), axis=None)
+                   + np.add.reduce(np.square(uz_elm), axis=None)
+                    )
     self.pdf, foo = np.histogram(f_elm.ravel(), bins=self.nbins, range=(-0.1, 1.1))
     toc('aggregate')
 
@@ -104,14 +107,14 @@ class Grid:
       uy_tmp = np.reshape(uy_elm[:,i], (self.order,self.order,self.order), order='F')
       uz_tmp = np.reshape(uz_elm[:,i], (self.order,self.order,self.order), order='F')
 
-      self.f_xy[ root[2]:root[2]+self.order]   += np.sum(f_tmp, (0,1))
-      self.ff_xy[ root[2]:root[2]+self.order]  += np.sum(f_tmp*(1.-f_tmp), (0,1))
-      self.vv_xy[root[2]:root[2]+self.order,0] += np.sum(ux_tmp*ux_tmp, (0,1))
-      self.vv_xy[root[2]:root[2]+self.order,1] += np.sum(ux_tmp*uy_tmp, (0,1))
-      self.vv_xy[root[2]:root[2]+self.order,2] += np.sum(ux_tmp*uz_tmp, (0,1))
-      self.vv_xy[root[2]:root[2]+self.order,3] += np.sum(uy_tmp*uy_tmp, (0,1))
-      self.vv_xy[root[2]:root[2]+self.order,4] += np.sum(uy_tmp*uz_tmp, (0,1))
-      self.vv_xy[root[2]:root[2]+self.order,5] += np.sum(uz_tmp*uz_tmp, (0,1))
+      self.f_xy[ root[2]:root[2]+self.order]   += np.add.reduce(f_tmp, (0,1))
+      self.ff_xy[ root[2]:root[2]+self.order]  += np.add.reduce(f_tmp*(1.-f_tmp), (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,0] += np.add.reduce(ux_tmp*ux_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,1] += np.add.reduce(ux_tmp*uy_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,2] += np.add.reduce(ux_tmp*uz_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,3] += np.add.reduce(uy_tmp*uy_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,4] += np.add.reduce(uy_tmp*uz_tmp, (0,1))
+      self.vv_xy[root[2]:root[2]+self.order,5] += np.add.reduce(uz_tmp*uz_tmp, (0,1))
 
       if yoff >= 0 and yoff < self.order:
         p_tmp = np.reshape(p_elm[:,i], (self.order,self.order,self.order), order='F')
