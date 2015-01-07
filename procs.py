@@ -21,7 +21,7 @@ def outer_process(job):
   from nek import NekFile
   data_path = dirname(args.name)
   data_tag  = basename(args.name) 
-  dir_width = int(log10(abs(params["io_files"])-1))+1
+  dir_width = int(log10(max(abs(params["io_files"])-1,1)))+1
   if params["io_files"] > 0:
     args.fname = "{:s}{:0{width}d}.f{:05d}".format(args.name, 0, frame, width=dir_width)
   else:
@@ -47,7 +47,7 @@ def outer_process(job):
     input_file = NekFile(args.fname)
     ranges = []
     for i in range(0, input_file.nelm, elm_per_block):
-      ranges.append([i*elm_per_block, min((i+1)*elm_per_block, input_file.nelm)])
+      ranges.append([i, min(i+elm_per_block, input_file.nelm)])
     targs  = zip( ranges,
                   [args.fname] * len(ranges), 
                   [params]     * len(ranges), 
