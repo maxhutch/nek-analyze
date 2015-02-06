@@ -142,8 +142,8 @@ def post_frame(ans, args, params, frame, time):
   import numpy as np
   import matplotlib.pyplot as plt
   from my_utils import find_root
-  from RTI.Grid import mixing_zone, energy_budget
-  from RTI.Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
+  from RTI.plots import mixing_zone, energy_budget
+  from RTI.plots import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
 
   data = ans['data']
 
@@ -199,8 +199,6 @@ def post_frame(ans, args, params, frame, time):
     print("Energy Budget (P,K): {:e} {:e}".format(ans['P'],ans['K']))  
 
   tic()
-  if data.box_dist != None:
-    plot_dim(data, fname = "{:s}{:05d}-dim.png".format(args.name, frame)) 
 
   if args.Fourier:
     plot_spectrum(data, fname = "{:s}{:05d}-spectrum.png".format(args.name, frame), 
