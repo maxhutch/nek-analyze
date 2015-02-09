@@ -1,4 +1,4 @@
-#!/home/maxhutch/anaconda3/bin/python
+#!/usr/bin/env python3
 """
 Driver for nek-analyze
 """
@@ -53,9 +53,4 @@ for i, res in enumerate(stuff):
   # Print a progress update
   run_time = time.time() - start_time
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
-
-# Post-post process the contents of the results dictionary
-from importlib import import_module
-x = import_module(args.post)
-x.post_series(results, params, args)
 
