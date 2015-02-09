@@ -1,4 +1,18 @@
-def MR_init(args, params):
+
+def get_fname(name, proc, frame, params):
+  from math import log10
+  from os.path import dirname, basename
+  data_path = dirname(name)
+  data_tag  = basename(name) 
+  dir_width = int(log10(max(abs(params["io_files"])-1,1)))+1
+  if params["io_files"] > 0:
+    fname = "{:s}{:0{width}d}.f{:05d}".format(name, proc, frame, width=dir_width)
+  else:
+    fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, proc, data_tag, proc, frame, width=dir_width)
+  return fname
+
+
+def MR_init(args, params, frame):
   """ Initialize MapReduce data """
   import numpy as np
   from RTI.Grid import Grid
@@ -31,10 +45,26 @@ def MR_init(args, params):
   del ans['Grid']
   del ans['args']
 
-  return ans
+  from nek import NekFile
+  njob_per_file = max(1+int((args.thread-1) / abs(int(params["io_files"]))),1)
+  jobs = []
+  for j in range(abs(int(params["io_files"]))):
+      fname = get_fname(args.name, j, frame, params)
+      input_file = NekFile(fname)
+      ans["time"] = input_file.time
+      elm_per_thread = int((input_file.nelm-1) / njob_per_file) + 1
+      for i in range(njob_per_file):
+          jobs.append([
+              (i * elm_per_thread, min((i+1)*elm_per_thread, input_file.nelm)),
+              fname,
+              params,
+              args,
+              ans])  
+      input_file.close()
+  return jobs
 
 
-def map_(pos, vel, p, t, params, scratch = None):
+def map_(input_file, pos, nelm_to_read, params, scratch = None):
   """ Map operations onto chunk of elements """
   import numpy as np
   from my_utils import lagrange_matrix
@@ -45,6 +75,8 @@ def map_(pos, vel, p, t, params, scratch = None):
   ans = {}
   if scratch != None:
     ans = scratch
+
+  nelm, pos, vel, p, t = input_file.get_elem(nelm_to_read, pos)
 
   # Let's compute the x, y, and z 1D bases
   cart_x = np.linspace(0., params['extent'][0], num=params['ninterp'],endpoint=False)/params['shape_mesh'][0]

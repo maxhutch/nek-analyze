@@ -133,7 +133,7 @@ def post_series(results, params, args):
   return
 
 
-def post_frame(ans, args, params, frame, time):
+def post_frame(ans, args, params, frame):
   if args.series or not args.display:
     import matplotlib
     matplotlib.use('Agg')
@@ -207,8 +207,8 @@ def post_frame(ans, args, params, frame, time):
                  )
   
   # Scatter plot of temperature (slice through pseudocolor in visit)
-  plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=time, zslice=True)
-  plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=time, height=ans['h_visual'])
+  plot_slice(data, fname = "{:s}{:05d}-zslice.png".format(args.name, frame), time=ans["time"], zslice=True)
+  plot_slice(data, fname = "{:s}{:05d}-yslice.png".format(args.name, frame), time=ans["time"], height=ans['h_visual'])
 
   plot_dist(data, "{:s}{:05d}-cdf.png".format(args.name, frame))
 
