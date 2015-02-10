@@ -24,7 +24,7 @@ def post_series(results, params, args):
     times = np.array(times, dtype=np.float64)
  
     # Numerical stability plot
-    from my_utils import find_root
+    from utils.my_utils import find_root
     PeCs  = np.array([d['PeCell'] for d in vals])
     TMaxs = np.array([d['TAbs']   for d in vals])
     Totals = np.array([d['Total']   for d in vals])
@@ -67,7 +67,7 @@ def post_series(results, params, args):
     """
  
     # mixing zone analysis
-    from my_utils import compute_alpha, compute_reynolds, compute_Fr
+    from utils.my_utils import compute_alpha, compute_reynolds, compute_Fr
 
     hs_visual = [d['h_visual'] for d in vals]
     Fr_visual = compute_Fr(hs_visual, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
@@ -141,7 +141,7 @@ def post_frame(ans, args, params, frame):
   from tictoc import tic, toc
   import numpy as np
   import matplotlib.pyplot as plt
-  from my_utils import find_root
+  from utils.my_utils import find_root
   from RTI.plots import mixing_zone, energy_budget
   from RTI.plots import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
 

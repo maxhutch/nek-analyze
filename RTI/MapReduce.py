@@ -45,7 +45,7 @@ def MR_init(args, params, frame):
   del ans['Grid']
   del ans['args']
 
-  from nek import NekFile
+  from files.nek import NekFile
   njob_per_file = max(1+int((args.thread-1) / abs(int(params["io_files"]))),1)
   jobs = []
   for j in range(abs(int(params["io_files"]))):
@@ -67,9 +67,9 @@ def MR_init(args, params, frame):
 def map_(input_file, pos, nelm_to_read, params, scratch = None):
   """ Map operations onto chunk of elements """
   import numpy as np
-  from my_utils import lagrange_matrix
-  from my_utils import transform_field_elements
-  from my_utils import transform_position_elements
+  from utils.my_utils import lagrange_matrix
+  from utils.my_utils import transform_field_elements
+  from utils.my_utils import transform_position_elements
   from tictoc import tic, toc
 
   ans = {}

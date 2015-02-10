@@ -31,8 +31,8 @@ for name in args.names:
   params[-1]['g'] = 9.8
 
 # Post-post processing
-from my_utils import extract_dict
-from my_utils import transpose_dict
+from utils.my_utils import extract_dict
+from utils.my_utils import transpose_dict
 times = []; PeCs = []; TMaxs = []; Totals = []; hs_cabots = []; hs_visuals = []; hs_fits = []; Xis = []
 _new_results_ = []
 for res in results:
@@ -191,7 +191,7 @@ for i in range(args.frame, min(args.frame_end+1, 82)):
   plt.savefig("compare{:05d}-yvslice.png".format(i), bbox_inches="tight")
   plt.close(fig)
 
-from my_utils import make_movie
+from utils.my_utils import make_movie
 make_movie("compare%05d-yslice.png",  "compare-yslice.mkv")
 make_movie("compare%05d-yvslice.png", "compare-yvslice.mkv")
 
@@ -210,11 +210,11 @@ plt.savefig("{:s}-stability.png".format(args.name))
 colors = ['red', 'blue', 'green', 'cyan', 'magenta', 'yelow']
 
 # mixing zone analysis
-from my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds, compute_Fr
+from utils.my_utils import compute_alpha, compute_alpha_quadfit, compute_reynolds, compute_Fr
 alpha_cabots = []; alpha_visuals = []; alpha_quads = []
 Fr_visuals = [];
 
-from my_utils import find_root
+from utils.my_utils import find_root
 thresh = 0.01
 zs = np.linspace(params[0]['root_mesh'][2], 
                  params[0]['extent_mesh'][2], 

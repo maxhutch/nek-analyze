@@ -30,7 +30,6 @@ class NekFile():
     self.test_tuple = struct.unpack('f', self.test)
     byteswap = abs(self.test_tuple[0] - 6.543210029) > 0.00001
     if byteswap:
-      print("  * swapping bytes")
       self.ty = '>f{:1d}'.format(self.word_size)
     else:
       self.ty = 'f{:1d}'.format(self.word_size)

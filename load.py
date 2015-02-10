@@ -13,7 +13,7 @@ with open("{:s}.json".format(args.name), 'r') as f:
   params = json.load(f)
 
 # Set up the frame arguments
-from procs import outer_process
+from parallel.procs import outer_process
 jobs = [[args, params, i] for i in range(args.frame, args.frame_end+1)]
 
 # schedule the frames, one IPython process each

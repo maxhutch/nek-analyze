@@ -1,7 +1,7 @@
-#!/home/maxhutch/anaconda3/bin/python
+#!/usr/bin/env python3
 
 from sys import argv
-from nek import NekFile
+from files.nek import NekFile
 import numpy as np
 
 ref = NekFile(argv[1])

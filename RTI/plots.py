@@ -251,7 +251,7 @@ def plot_spectrum(grid, fname = None, slices = None, contour = False):
 
 def mixing_zone(grid, thresh = .05):
   import numpy as np
-  from my_utils import find_root
+  from utils.my_utils import find_root
   from tictoc import tic, toc
 
   L = np.max(grid.corner[2]) - np.min(grid.origin[2])
@@ -300,7 +300,7 @@ def mixing_zone(grid, thresh = .05):
 
 def energy_budget(grid):
   import numpy as np
-  from my_utils import find_root
+  from utils.my_utils import find_root
 
   # Potential
   zs = np.linspace(grid.origin[2], grid.corner[2], grid.shape[2], endpoint = False)

@@ -24,7 +24,7 @@ def post_series(results, params, args):
     times = np.array(times, dtype=np.float64)
  
     # Numerical stability plot
-    from my_utils import find_root
+    from utils.my_utils import find_root
     PeCs  = np.array([d['PeCell'] for d in vals])
     TMaxs = np.array([d['TAbs']   for d in vals])
     Totals = np.array([d['Total']   for d in vals])
@@ -66,7 +66,7 @@ def post_series(results, params, args):
  
     # mixing zone analysis
     if args.mixing_zone: 
-      from my_utils import compute_alpha, compute_reynolds, compute_Fr
+      from utils.my_utils import compute_alpha, compute_reynolds, compute_Fr
       hs_cabot = [d['h_cabot'] for d in vals]
       Fr_cabot = compute_Fr(hs_cabot, times) / np.sqrt(params['atwood']*params['g']*params['extent_mesh'][0])
       alpha_cabot = np.array(compute_alpha(hs_cabot, times)) / (params['atwood']*params['g'])
@@ -172,7 +172,7 @@ def post_frame(ans, args, params, frame, time):
   from tictoc import tic, toc
   import numpy as np
   import matplotlib.pyplot as plt
-  from my_utils import find_root
+  from utils.my_utils import find_root
   from Grid import mixing_zone, energy_budget
   from Grid import plot_slice, plot_spectrum, plot_dist, plot_dim, plot_prof
 

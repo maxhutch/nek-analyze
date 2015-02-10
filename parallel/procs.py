@@ -11,13 +11,14 @@ def outer_process(job):
   args, params, frame = job
 
   # always need these
-  import numpy as np
   from importlib import import_module
   MR = import_module(args.mapreduce)
 
   # Initialize the MapReduce data with base cases
-  from copy import deepcopy
+  # Returns job list to pass to map
   jobs = MR.MR_init(args, params, frame)
+  # Copy a base case in which to reduce the results
+  from copy import deepcopy
   ans = deepcopy(jobs[0][4])
 
   # Map!
@@ -56,23 +57,22 @@ def inner_process(job):
   elm_range, fname, params, args, ans_in = job
 
   # always need this
-  import numpy as np
   from importlib import import_module
   MR = import_module(args.mapreduce)
 
   # Create 'empty' answer dictionary
   from copy import deepcopy
-  res = deepcopy(ans_in)
+  res = ans_in
+  #res = deepcopy(ans_in)
   ans = deepcopy(ans_in)
 
   # Open the data file
-  from nek import NekFile
+  from files.nek import NekFile
   input_file = NekFile(fname)
-  res['time'] = input_file.time
+  #res['time'] = input_file.time
   print("Processed {:s}".format(fname))
 
   # Loop over maps and local reduces
-  from tictoc import tic, toc
   for pos in range(elm_range[0], elm_range[1], args.block):
     # make sure we don't read past this thread's range
     nelm_to_read = min(args.block, elm_range[1] - pos)
@@ -85,3 +85,4 @@ def inner_process(job):
 
   input_file.close()
   return res
+

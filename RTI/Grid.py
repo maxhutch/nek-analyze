@@ -58,7 +58,6 @@ class Grid:
     import numpy as np
     import numpy.linalg as lin
     import scipy.ndimage.measurements as measurements
-    from my_utils import compute_index
     import time as timer
     from tictoc import tic, toc
 
