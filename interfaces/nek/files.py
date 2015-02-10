@@ -1,5 +1,7 @@
 
-class NekFile():
+from interfaces.abstract import AbstractFileReader
+
+class NekFile(AbstractFileReader):
   def __init__(self, fname, base = None):
     # Do we have another file to base this off of?
     if base != None:

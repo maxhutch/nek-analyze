@@ -67,7 +67,7 @@ def inner_process(job):
   ans = deepcopy(ans_in)
 
   # Open the data file
-  from files.nek import NekFile
+  from interfaces.nek.files import NekFile
   input_file = NekFile(fname)
   #res['time'] = input_file.time
   print("Processed {:s}".format(fname))

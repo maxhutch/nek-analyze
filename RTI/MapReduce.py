@@ -45,7 +45,7 @@ def MR_init(args, params, frame):
   del ans['Grid']
   del ans['args']
 
-  from files.nek import NekFile
+  from interfaces.nek.files import NekFile
   njob_per_file = max(1+int((args.thread-1) / abs(int(params["io_files"]))),1)
   jobs = []
   for j in range(abs(int(params["io_files"]))):
@@ -71,11 +71,14 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   from utils.my_utils import transform_field_elements
   from utils.my_utils import transform_position_elements
   from tictoc import tic, toc
+  from interfaces.nek.mesh import UniformMesh
 
   ans = {}
   if scratch != None:
     ans = scratch
 
+  mesh = UniformMesh(input_file, params)
+  mesh.load(pos, nelm_to_read)
   nelm, pos, vel, p, t = input_file.get_elem(nelm_to_read, pos)
 
   # Let's compute the x, y, and z 1D bases
@@ -100,10 +103,15 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   hunk = np.concatenate((p, t, vel[:,0,:], vel[:,1,:], vel[:,2,:]), axis=1)
   hunk_trans = transform_field_elements(hunk, trans, cart)
   p_trans, t_trans, ux_trans, uy_trans, uz_trans = np.split(hunk_trans, 5, axis=1)
+
   # Save some results pre-renorm
-  max_speed = np.sqrt(np.max(np.square(ux_trans) + np.square(uy_trans) + np.square(uz_trans)))
-  ans['TMax']   = float(np.amax(t_trans))
-  ans['TMin']   = float(np.amin(t_trans))
+  max_speed = np.sqrt(mesh.max(
+                np.square(mesh.fld('u')) 
+              + np.square(mesh.fld('v')) 
+              + np.square(mesh.fld('w'))
+                              ))
+  ans['TMax']   = float(mesh.max(mesh.fld('t')))
+  ans['TMin']   = float(mesh.min(mesh.fld('t')))
   ans['UAbs']   = float( max_speed)
   ans['dx_max'] = float(np.max(gll[1:] - gll[0:-1]))
 
