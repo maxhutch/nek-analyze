@@ -1,5 +1,6 @@
 
 from interfaces.abstract import AbstractMesh
+from interfaces.nek.sem import zwgll, dhat
 import numpy as np
 
 class UniformMesh(AbstractMesh):
@@ -14,6 +15,13 @@ class UniformMesh(AbstractMesh):
     self.length = self.extent / self.shape
     self.fields = {}
     self.dealias = 1.
+    z, w = zwgll(self.norder-1)
+    self.gll = (z+1.)/(2.*self.length[0])
+    self.b1  = w * (self.length[0] / 2.)
+    self.b2  = np.outer(self.b1, self.b1)
+    self.b3  = np.reshape(np.outer(self.b1,self.b2),
+                          (self.norder,self.norder, self.norder))
+    self.d1  = dhat(self.gll)
 
     return
 
@@ -37,15 +45,8 @@ class UniformMesh(AbstractMesh):
   def dx(self, fld, axis):
     if isinstance(fld, str):
       fld = self.fld(fld)
-    h = self.length[axis]/(self.norder-1)
 
-    res = np.zeros(fld.shape)
-    if axis == 0:
-        res[1:-1,:,:,:] = (fld[2:,:,:,:] - fld[:-2,:,:,:])/(2.*h)
-    elif axis == 1:
-        res[:,1:-1,:,:] = (fld[:,2:,:,:] - fld[:,:-2,:,:])/(2.*h)
-    elif axis == 2:
-        res[:,:,1:-1,:] = (fld[:,:,2:,:] - fld[:,:,:-2,:])/(2.*h)
+    res = np.tensordot(self.d1, fld, axes=([1,axis]))
 
     return res
 
@@ -54,10 +55,9 @@ class UniformMesh(AbstractMesh):
       fld = self.fld(fld)
     if not isinstance(axis, list):
       axis = [axis]
-    v = 1.
-    for ax in axis:
-      v *= self.length[ax]/self.norder
-    return np.add.reduce(fld * v, axis)
+
+    # Note, this isn't quite right
+    return np.add.reduce(fld * self.b3, axis)
 
   def max(self, fld, axis = (0,1,2,3)):
     if isinstance(fld, str):
