@@ -16,7 +16,7 @@ class UniformMesh(AbstractMesh):
     self.fields = {}
     self.dealias = 1.
     z, w = zwgll(self.norder-1)
-    self.gll = (z+1.)/(2.*self.length[0])
+    self.gll = self.length[0] * (z+1.)/(2.)
     self.b1  = w * (self.length[0] / 2.)
     self.b2  = np.outer(self.b1, self.b1)
     self.b3  = np.reshape(np.outer(self.b1,self.b2),
