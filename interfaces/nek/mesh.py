@@ -27,16 +27,16 @@ class UniformMesh(AbstractMesh):
 
   def load(self, pos, num):
     n, x, u, p, t = self.reader.get_elem(num,pos)
-    self.nelm = n
+    self.nelm = int(n)
     nshp = (self.norder, self.norder, self.norder, self.nelm)
-    self.fields['x'] = np.reshape(x[:,0,:], nshp)
-    self.fields['y'] = np.reshape(x[:,1,:], nshp)
-    self.fields['z'] = np.reshape(x[:,2,:], nshp)
-    self.fields['u'] = np.reshape(u[:,0,:], nshp)
-    self.fields['v'] = np.reshape(u[:,1,:], nshp)
-    self.fields['w'] = np.reshape(u[:,2,:], nshp)
-    self.fields['p'] = np.reshape(p       , nshp)
-    self.fields['t'] = np.reshape(t       , nshp)
+    self.fields['x'] = np.reshape(x[:,0,:], nshp, order = 'F')
+    self.fields['y'] = np.reshape(x[:,1,:], nshp, order = 'F')
+    self.fields['z'] = np.reshape(x[:,2,:], nshp, order = 'F')
+    self.fields['u'] = np.reshape(u[:,0,:], nshp, order = 'F')
+    self.fields['v'] = np.reshape(u[:,1,:], nshp, order = 'F')
+    self.fields['w'] = np.reshape(u[:,2,:], nshp, order = 'F')
+    self.fields['p'] = np.reshape(p       , nshp, order = 'F')
+    self.fields['t'] = np.reshape(t       , nshp, order = 'F')
     return
 
   def fld(self, name):
@@ -50,14 +50,13 @@ class UniformMesh(AbstractMesh):
 
     return res
 
-  def int(self, fld, axis):
+  def int(self, fld, axis = (0,1,2,3)):
     if isinstance(fld, str):
       fld = self.fld(fld)
-    if not isinstance(axis, list):
-      axis = [axis]
 
     # Note, this isn't quite right
-    return np.add.reduce(fld * self.b3, axis)
+    foo = fld * np.tile(self.b3, (self.nelm,1,1,1)).transpose()
+    return np.add.reduce(foo, axis)
 
   def max(self, fld, axis = (0,1,2,3)):
     if isinstance(fld, str):
@@ -69,3 +68,43 @@ class UniformMesh(AbstractMesh):
       fld = self.fld(fld)
     return np.minimum.reduce(fld,axis)
 
+  def slice(self, fld, intercept, axis, op = None):
+    if isinstance(fld, str):
+      fld = self.fld(fld)
+    full_shape = self.shape * (self.norder-1) + 1
+    slice_shape = []
+    root = []
+    cept = []
+    root2 = []
+    p = ['x', 'y', 'z']
+    for i in range(3):
+      if not i in axis:
+        slice_shape.append(full_shape[i]-1)
+        root.append(np.array((self.fields[p[i]][0,0,0,:] -self.origin[i]) / self.length[i], dtype=int))
+      else:
+        root2.append(np.array((self.fields[p[i]][0,0,0,:] -self.origin[i]) / self.length[i], dtype=int))
+        cept.append(int((intercept[i] -self.origin[i]) / self.length[i]))
+
+    slice = np.zeros(slice_shape)
+    if op != None:
+      local = op.reduce(fld[:-1,:-1,:-1,:], axis)
+      for i in range(self.nelm):
+        foo = local[...,i]
+        starti = [7*root[j][i] for j in range(len(root))]
+        endi = [x + self.norder - 1 for x in starti]
+        sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
+        slice[sl] += foo
+    else:
+      local = fld[:-1,:-1,:-1,:]
+      for i in range(self.nelm):
+        here = all([root2[j][i] == cept[j] for j in range(len(cept))])
+        if not here: 
+          continue
+        sl = tuple([np.s_[0] if ax in axis else np.s_[:] for ax in range(3)] + [np.s_[i]])
+        foo = local[sl]
+        starti = [7*root[j][i] for j in range(len(root))]
+        endi = [x + self.norder - 1 for x in starti]
+        sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
+        slice[sl] += foo
+    
+    return slice
