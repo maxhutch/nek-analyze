@@ -30,13 +30,14 @@ else:
 # insert new results into the dictionary
 from os.path import exists
 fname = '{:s}-results.dat'.format(args.name)
+from utils.custom_json import CustomEncoder, CustomDecoder
 for i, res in enumerate(stuff):
 
   # load the results dictionary (if it exists)
   results = {}
   if exists(fname):
     with open(fname, 'r') as f:
-      results = json.load(f)
+      results = json.load(f, cls=CustomDecoder)
 
   # if the frame is already there
   if res[0] in results:
@@ -48,7 +49,7 @@ for i, res in enumerate(stuff):
 
   # dump the dictionary back to json file
   with open(fname, 'w') as f:
-    json.dump(results,f, indent=2, separators=(',',':'))
+    json.dump(results,f, indent=2, separators=(',',':'), cls=CustomEncoder)
 
   # Print a progress update
   run_time = time.time() - start_time
