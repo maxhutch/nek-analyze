@@ -47,6 +47,10 @@ class UniformMesh(AbstractMesh):
       fld = self.fld(fld)
 
     res = np.tensordot(self.d1, fld, axes=([1,axis]))
+    if axis == 1:
+      res = res.transpose([1,0,2,3])
+    elif axis == 2:
+      res = res.transpose([2,1,0,3])
 
     return res
 
