@@ -167,5 +167,12 @@ def post_frame(ans, params, args):
   for name in ans['slices']:
     plot_slice(ans[name], name, ans['frame'])
 
+  from chest import Chest
+  #from hickle import load, dump
+  c = Chest(path='{:s}-chest-{:03d}'.format(args.name, ans['frame']))
+  c[str(ans['time'])] = ans
+  c.flush()
+  ans['chest'] = c
+
   return 
 
