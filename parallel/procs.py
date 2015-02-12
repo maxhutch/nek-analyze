@@ -41,9 +41,11 @@ def outer_process(job):
   if args.verbose:
     print('  Reduce took {:f}s on {:d} processes'.format(time_.time()-ttime, args.thread))
 
+  ans["frame"] = frame
+
   # Analysis! 
   post = import_module(args.post)
-  post.post_frame(ans, args, params, frame)
+  post.post_frame(ans, params, args)
 
   return (str(ans["time"]), ans)
 
