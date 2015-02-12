@@ -130,11 +130,31 @@ def post_series(results, params, args):
     
   return
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+def plot_slice(data, name, frame):
+  import numpy as np
 
-def post_frame(ans, args, params, frame):
-  import matplotlib
-  matplotlib.use('Agg')
+  min_size = 6
+  if len(data.shape) == 2:
+    fsize = np.array(data.shape) * min_size / min(data.shape)
+    plt.figure(figsize=tuple(fsize.tolist()))
+    ax = plt.subplot(111)
+    ax.imshow(data.transpose(), origin='lower')
+    plt.title(name)
+    plt.savefig('{:s}-{:04d}.png'.format(name, frame))
+    plt.close()
+  elif len(data.shape) == 1:
+    plt.figure(figsize=(min_size, min_size))
+    ax = plt.subplot(111)
+    ax.plot(data)
+    plt.title(name)
+    plt.savefig('{:s}-{:04d}.png'.format(name, frame))
+    plt.close()
+  return
 
+def post_frame(ans, params, args):
   # Analysis! 
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
   ans['PeCell'] = ans['UAbs']*ans['dx_max']/params['conductivity']
@@ -143,6 +163,9 @@ def post_frame(ans, args, params, frame):
     print("  Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
     print("  Max speed: {:f}".format(ans['UAbs']))
     print("  Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
+
+  for name in ans['slices']:
+    plot_slice(ans[name], name, ans['frame'])
 
   return 
 
