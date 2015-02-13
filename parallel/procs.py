@@ -47,7 +47,13 @@ def outer_process(job):
   post = import_module(args.post)
   post.post_frame(ans, params, args)
 
-  return (str(ans["time"]), ans)
+  # Save the results to file!
+  from chest import Chest
+  c = Chest(path='{:s}-chest-{:03d}'.format(args.name, frame))
+  c[ans['time']] = ans
+  c.flush()
+
+  return c 
 
 
 def inner_process(job):

@@ -27,32 +27,11 @@ if len(jobs) > 2 and args.parallel:
 else:
   stuff =  map(outer_process, jobs)
 
-# insert new results into the dictionary
-from os.path import exists
-fname = '{:s}-results.dat'.format(args.name)
-from utils.custom_json import CustomEncoder, CustomDecoder
+# insert new results into the out-of-core dictionary (Chest)
 from chest import Chest
 c = Chest(path='{:s}-results'.format(args.name))
 for i, res in enumerate(stuff):
-
-  # load the results dictionary (if it exists)
-  #results = {}
-  #if exists(fname):
-  #  with open(fname, 'r') as f:
-  #    results = json.load(f, cls=CustomDecoder)
-
-  # if the frame is already there
-  #if res[0] in results:
-  #  # merge results
-  #  results[res[0]] = dict(list(results[res[0]].items()) + list(res[1].items()))
-  #else:
-    # insert results
-  #  results[res[0]] = res[1]
-  c.eat(res[1]['chest'])
-
-  # dump the dictionary back to json file
-  #with open(fname, 'w') as f:
-  #  json.dump(results,f, indent=2, separators=(',',':'), cls=CustomEncoder)
+  c.eat(res)
 
   # Print a progress update
   run_time = time.time() - start_time
