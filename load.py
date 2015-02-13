@@ -31,7 +31,8 @@ else:
 from chest import Chest
 c = Chest(path='{:s}-results'.format(args.name))
 for i, res in enumerate(stuff):
-  c.eat(res)
+  c.update(res)
+  res.drop()
 
   # Print a progress update
   run_time = time.time() - start_time
