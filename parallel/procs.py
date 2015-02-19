@@ -51,7 +51,8 @@ def outer_process(job):
   from chest import Chest
   cpath = '{:s}-chest-{:03d}'.format(args.name, frame)
   c = Chest(path=cpath)
-  c[ans['time']] = ans
+  for key in ans.keys():
+    c[ans['time'], key] = ans[key]
   c.flush()
 
   return cpath
