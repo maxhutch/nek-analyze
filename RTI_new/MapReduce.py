@@ -133,18 +133,6 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
                                         )
   a.red_sum.append('Potential')
 
-  diss = p.viscosity * (
-        2. * (du2+dv2+dw2) 
-      +  np.square(mesh.dx('v',0) + mesh.dx('u',1))  
-      +  np.square(mesh.dx('w',1) + mesh.dx('v',2))  
-      +  np.square(mesh.dx('u',2) + mesh.dx('w',0))
-                       )
-  a.Dissipated = mesh.int(diss) * p.io_time
-  a.red_sum.append('Dissipated')
-  a.d_xy = mesh.slice(diss, intercept, (2,))
-  a.d_yz = mesh.slice(diss, intercept, (0,))
-  a.slices += ['d_xy', 'd_yz']
-
    
   # Take slices
   omegaz = mesh.dx('v',0) - mesh.dx('u',1)
@@ -182,6 +170,19 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   a.dw2_proj_z = mesh.slice(dw2, intercept, (0,1), np.add)
   a.slices += [ 'u2_proj_z',  'v2_proj_z',  'w2_proj_z']
   a.slices += ['du2_proj_z', 'dv2_proj_z', 'dw2_proj_z']
+
+  diss = p.viscosity * (
+        2. * (du2+dv2+dw2) 
+      +  np.square(mesh.dx('v',0) + mesh.dx('u',1))  
+      +  np.square(mesh.dx('w',1) + mesh.dx('v',2))  
+      +  np.square(mesh.dx('u',2) + mesh.dx('w',0))
+                       )
+  a.Dissipated = mesh.int(diss) * p.io_time
+  a.red_sum.append('Dissipated')
+  a.d_xy = mesh.slice(diss, intercept, (2,))
+  a.d_yz = mesh.slice(diss, intercept, (0,))
+  a.slices += ['d_xy', 'd_yz']
+
 
 
   a.red_sum += a.slices
