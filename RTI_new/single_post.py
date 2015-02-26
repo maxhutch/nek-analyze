@@ -77,7 +77,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from os.path import basename
-def plot_slice(data, name, frame):
+def plot_slice(data, name):
 
   min_size = 6
   if len(data.shape) == 2:
@@ -108,12 +108,12 @@ def post_frame(ans, params, args):
   h = 0.
   tmax = np.max(ans["t_proj_z"])
   tmin = np.min(ans["t_proj_z"])
-  tzero = (t_max + t_min) / 2
+  tzero = (tmax + tmin) / 2
   h_cabot = 0.
   for i in range(ans["t_proj_z"].shape[0]):
     if ans["t_proj_z"][i] < tzero:
       h_cabot += (ans["t_proj_z"][i] - tmin) 
-    else
+    else:
       h_cabot += (tmax - ans["t_proj_z"][i]) 
   ans["h"] = h_cabot
 
@@ -134,7 +134,7 @@ def plot_frame(ans, params, args):
     print("  Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
 
   for name in ans['slices']:
-    plot_slice(ans[name], "{:s}-{:s}".format(args.name,name), ans['frame'])
+    plot_slice(ans[name], "{:s}-{:s}-{:04d}".format(args.name,name, ans['frame']))
 
   return 
 

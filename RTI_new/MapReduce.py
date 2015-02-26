@@ -121,12 +121,12 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   a.red_max.append('dx_max')
 
   # Total energy 
-  a.Kinetic_x = mesh.int(np.square(mesh.fld('u')))  
-  a.Kinetic_y = mesh.int(np.square(mesh.fld('v')))  
-  a.Kinetic_z = mesh.int(np.square(mesh.fld('w')))  
+  a.Kinetic_x = mesh.int(np.square(mesh.fld('u')))/2.
+  a.Kinetic_y = mesh.int(np.square(mesh.fld('v')))/2. 
+  a.Kinetic_z = mesh.int(np.square(mesh.fld('w')))/2.
   a.red_sum += ['Kinetic_x', 'Kinetic_y', 'Kinetic_z']
  
-  a.Kinetic = 0.5 * (a.Kinetic_x + a.Kinetic_y + a.Kinetic_z)
+  a.Kinetic = a.Kinetic_x + a.Kinetic_y + a.Kinetic_z
   a.red_sum.append('Kinetic')
 
   a.Potential = p.g * mesh.int(
