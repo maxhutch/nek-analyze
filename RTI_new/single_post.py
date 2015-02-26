@@ -75,8 +75,9 @@ import os.path
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
+from os.path import basename
 def plot_slice(data, name, frame):
-  import numpy as np
 
   min_size = 6
   if len(data.shape) == 2:
@@ -84,15 +85,15 @@ def plot_slice(data, name, frame):
     plt.figure(figsize=tuple(fsize.tolist()))
     ax = plt.subplot(111)
     ax.imshow(data.transpose(), origin='lower')
-    plt.title(os.path.basename(name))
-    plt.savefig('{:s}-{:04d}.png'.format(name, frame))
+    plt.title(basename(name))
+    plt.savefig('{:s}.png'.format(name))
     plt.close()
   elif len(data.shape) == 1:
     plt.figure(figsize=(min_size, min_size))
     ax = plt.subplot(111)
     ax.plot(data)
-    plt.title(os.path.basename(name))
-    plt.savefig('{:s}-{:04d}.png'.format(name, frame))
+    plt.title(basename(name))
+    plt.savefig('{:s}.png'.format(name))
     plt.close()
   return
 

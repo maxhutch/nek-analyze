@@ -1,3 +1,4 @@
+#!/home/maxhutch/anaconda3/bin/python
 #!/usr/bin/env python3
 """
 Driver for nek-analyze
@@ -20,7 +21,7 @@ jobs = [[args, params, i] for i in range(args.frame, args.frame_end+1)]
 # if only one process or parallel not set, use normal map
 import time
 start_time = time.time()
-if len(jobs) > 2 and args.parallel:
+if len(jobs) > 1 and args.parallel:
   from IPython.parallel import Client
   p = Client(profile='mpi')
   stuff = p.load_balanced_view().map_async(outer_process, jobs)
@@ -31,8 +32,9 @@ else:
 from chest import Chest
 c = Chest(path='{:s}-results'.format(args.name))
 for i, res in enumerate(stuff):
-  c.update(res)
-  res.drop()
+  c1 = Chest(path=res)
+  c.update(c1)
+  c1.drop()
 
   # Print a progress update
   run_time = time.time() - start_time

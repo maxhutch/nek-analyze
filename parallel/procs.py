@@ -50,11 +50,13 @@ def outer_process(job):
 
   # Save the results to file!
   from chest import Chest
-  c = Chest(path='{:s}-chest-{:03d}'.format(args.name, frame))
-  c[ans['time']] = ans
+  cpath = '{:s}-chest-{:03d}'.format(args.name, frame)
+  c = Chest(path=cpath)
+  for key in ans.keys():
+    c[ans['time'], key] = ans[key]
   c.flush()
 
-  return c 
+  return cpath
 
 
 def inner_process(job):

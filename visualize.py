@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/maxhutch/anaconda3/bin/python
 """
 Visualize series outputs of nek-analyze
 """
