@@ -113,12 +113,12 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   a.dx_max = float(np.max(mesh.gll[1:] - mesh.gll[:-1]))
   a.red_max.append('dx_max')
 
-  
-  a.Kinetic = mesh.int(
-                 np.square(mesh.fld('u'))
-               + np.square(mesh.fld('v'))
-               + np.square(mesh.fld('w'))
-                       )  
+  a.Kinetic_x = mesh.int(np.square(mesh.fld('u')))  
+  a.Kinetic_y = mesh.int(np.square(mesh.fld('v')))  
+  a.Kinetic_z = mesh.int(np.square(mesh.fld('w')))  
+  a.red_sum += ['Kinetic_x', 'Kinetic_y', 'Kinetic_z']
+ 
+  a.Kinetic = a.Kinetic_x + a.Kinetic_y + a.Kinetic_z  
   a.red_sum.append('Kinetic')
 
   a.Potential = p.g * mesh.int(
@@ -136,13 +136,15 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
                               intercept, (0,))
   a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
   a.t_yz = mesh.slice(mesh.fld('t'), intercept, (0,))
-  a.t_proj_yz = mesh.slice(mesh.fld('t'), intercept, (0,1), np.add)
+  a.u_xy = mesh.slice(mesh.fld('u'), intercept, (2,))
+  a.v_xy = mesh.slice(mesh.fld('v'), intercept, (2,))
+  a.t_proj_z = mesh.slice(mesh.fld('t'), intercept, (0,1), np.add)
   a.w_xy = mesh.slice(mesh.fld('w'), intercept, (2,))
   a.w_yz = mesh.slice(mesh.fld('w'), intercept, (0,))
   a.p_xy = mesh.slice(mesh.fld('p'), intercept, (2,))
   a.p_yz = mesh.slice(mesh.fld('p'), intercept, (0,))
   a.slices = ['vorticity_xy', 'vorticity_yz', 't_xy', 't_yz', 't_proj_yz',
-              'p_xy', 'p_yz', 'w_xy', 'w_yz', 'vorticity_proj_z']
+              'p_xy', 'p_yz', 'w_xy', 'w_yz', 'vorticity_proj_z', 'u_xy', 'v_xy']
 
   diss = p.viscosity * (
         2. * (np.square(mesh.dx('u',0)) + np.square(mesh.dx('v',1)) + np.square(mesh.dx('w',2))) 

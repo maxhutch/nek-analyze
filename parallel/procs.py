@@ -46,6 +46,7 @@ def outer_process(job):
   # Analysis! 
   post = import_module(args.post)
   post.post_frame(ans, params, args)
+  post.plot_frame(ans, params, args)
 
   # Save the results to file!
   from chest import Chest

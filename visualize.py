@@ -8,7 +8,6 @@ from ui import command_line_ui
 args = command_line_ui()
 
 # load params from genrun.py input dictionary
-from chest import Chest
 import json
 #from utils.custom_json import CustomDecoder
 with open("{:s}.json".format(args.name), 'r') as f:
@@ -18,13 +17,20 @@ with open("{:s}.json".format(args.name), 'r') as f:
 fname = '{:s}-results.dat'.format(args.name)
 #with open(fname, 'r') as f:
 #  results = json.load(f, cls=CustomDecoder)
-results = Chest(path="{:s}-results".format(args.name))
+from chest import Chest
+from slict import CachedSlict
+results = CachedSlict(Chest(path="{:s}-results".format(args.name)))
 
 from importlib import import_module
-x = import_module(args.post)
-for res in results.values():
-  x.post_frame(res, params, args)  
+xx = import_module(args.post)
+import time as clock
+start_time = clock.time()
+i = 0
+#for time in results[:,"frame"].keys():
+#  xx.plot_frame(results[time,:], params, args)  
+#  i = i + 1
+#  print("Processed t={:f} ({:f} fps)".format(time, (clock.time() - start_time) / i))
 
 # Post-post process the contents of the results dictionary
-x.post_series(results, params, args)
+xx.post_series(results, params, args)
 
