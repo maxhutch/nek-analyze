@@ -151,6 +151,23 @@ class NekFile(AbstractFileReader):
 
     return numl, x, u, p, t
 
+  def get_global_index(self, num, params, pos = -1):
+    if pos < 0:
+      pos = self.current_elm
+    self.current_elm = pos
+    self.seek(pos, readable = True)
+    numl = min(num, self.nelm - pos)
+    if numl < 0:
+        return 0, None
+    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+    x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
+    self.current_elm += numl
+    L = np.array(params["extent_mesh"][:]) - np.array(params["root_mesh"][:])
+    origin = np.array(params["root_mesh"][:]
+    N = np.array(params["shape_mesh"][:])
+    return numl, [(x_raw[0,0,0,:,i]-origin) * N/ L for i in range(numl)]
+    
+
   def write(self, x, u, p, t, ielm = -1):
     """Write one element."""
 

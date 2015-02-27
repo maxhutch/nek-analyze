@@ -14,6 +14,11 @@ class AbstractFileReader(metaclass=ABCMeta):
   def get_elem(self, num, pos):
     pass
 
+  @abstractmethod
+  def get_global_index(self, num, params, pos):
+    pass
+
+
 class AbstractMesh(metaclass=ABCMeta):
   @abstractmethod
   def __init__(self, reader):
