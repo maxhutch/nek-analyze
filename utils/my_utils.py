@@ -154,7 +154,7 @@ def compute_index(root, shape):
   shape = np.array(shape / 2, dtype = int)
   return ind * power + compute_index(np.mod(root,shape), shape)
 
-def compute_Fr(h, t):
+def compute_Fr(t, h):
   import numpy as np
   window = 3
   Fr = np.zeros(len(h))

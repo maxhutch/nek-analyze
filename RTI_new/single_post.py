@@ -2,6 +2,8 @@
 Post-processing module: to be completed by user
 """
 
+from utils.struct import Struct
+
 def post_series(results, params, args):
   """Post-process time-series results, outputting to screen or files.
 
@@ -17,6 +19,9 @@ def post_series(results, params, args):
     matplotlib.use('Agg')
   import matplotlib.pyplot as plt
 
+  # Make namespace-like handles for params
+  p = Struct(params)
+
   # Extract the times
   times = np.array(results[:,'frame'].keys())
 
@@ -28,19 +33,21 @@ def post_series(results, params, args):
       print("Simulation went unstable at t={:f}, PeCell={:f}+/-{:f}".format(times[i], (PeCs[i]+PeCs[i-1])/2, (PeCs[i]-PeCs[i-1])/2))
       break
 
+  p.atwood = TMaxs[0]
+
   plt.figure()
   ax1 = plt.subplot(1,1,1)
   plt.xlabel('Time (s)')
   ax1.plot(times, np.log(PeCs),          label='Log[Cell Peclet]')
-  ax1.plot(times, TMaxs*2./params['atwood'], 'gx', label='max(T)/max(T0)')
+  ax1.plot(times, TMaxs*2./p.atwood, 'gx', label='max(T)/max(T0)')
   plt.ylim(ymin = 0)
   plt.legend(loc=2)
   plt.savefig("{:s}-stability.png".format(args.name))
 
   # Energy budget
   KEs = np.array(results[:,'Kinetic'].values())
-  #KXs = np.array(results[:,'Kinetic_x'].values()) + np.array(results[:,'Kinetic_y'].values())
-  #KZs = np.array(results[:,'Kinetic_z'].values())
+  KXs = np.array(results[:,'Kinetic_x'].values()) + np.array(results[:,'Kinetic_y'].values())
+  KZs = np.array(results[:,'Kinetic_z'].values())
   PEs = np.array(results[:,'Potential'].values())
   DIs = np.array(results[:,'Dissipated'].values())
   for i in range(DIs.shape[0]-1, -1, -1):
@@ -52,8 +59,8 @@ def post_series(results, params, args):
   ax1 = plt.subplot(1,1,1)
   plt.xlabel('Time (s)')
   ax1.plot(times, KEs /PEs,     label="Kinetic")
-  #ax1.plot(times, KXs /PEs,     label="Kinetic_x", 'b--')
-  #ax1.plot(times, KZs /PEs,     label="Kinetic_y", 'b-.')
+  ax1.plot(times, KXs/2 /PEs, 'b--',     label="Kinetic_x")
+  ax1.plot(times, KZs/2 /PEs, 'b-.',     label="Kinetic_y")
   ax1.plot(times, DIs /PEs, label="Dissipated")
   ax1.plot(times, DFs /PEs , label="Diffused")
   plt.ylim(ymin = 0, ymax = 1)
@@ -61,8 +68,30 @@ def post_series(results, params, args):
   plt.savefig("{:s}-energy.png".format(args.name))
 
   # Froude Number
+  hs = 8* np.array(results[:,"h"].values()) / (32*7+1)**2
+  Hs = -np.array(results[:,"H"].values())
+  plt.figure()
+  ax1 = plt.subplot(111)
+  ax1.plot(times, hs, label="Cabot")
+  ax1.plot(times, Hs, label="Visual")
+  plt.legend(loc=2, ncol=2)
+  plt.savefig("{:s}-h.png".format(args.name))
 
-
+  from utils.my_utils import compute_Fr
+  Fhs = compute_Fr(times, hs) / np.sqrt(p.atwood * p.g * p.extent_mesh[0])
+  FHs = compute_Fr(times, Hs) / np.sqrt(p.atwood * p.g * p.extent_mesh[0])
+  gonc = 1./np.sqrt(np.pi)
+  bane = (np.sqrt(p.atwood * p.g * p.extent_mesh[0] / np.pi + (2.*np.pi*p.viscosity / p.extent_mesh[0])**2)
+          - (2.*np.pi*p.viscosity / p.extent_mesh[0]) ) / np.sqrt(p.atwood * p.g * p.extent_mesh[0])
+  plt.figure()
+  ax1 = plt.subplot(111)
+  ax1.plot(times, Fhs, label="Cabot")
+  ax1.plot(times, FHs, label="Visual")
+  ax1.plot(times, [gonc]*times.shape[0], 'k', label='Goncharaov')
+  ax1.plot(times, [bane]*times.shape[0], 'k--', label='Goncharaov')
+  plt.legend(loc=2, ncol=2)
+  plt.ylim(ymin = 0, ymax = 1)
+  plt.savefig("{:s}-Fr.png".format(args.name))
 
   # Finally, stitch together frames into movies
   from utils.my_utils import make_movie
