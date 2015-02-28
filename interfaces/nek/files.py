@@ -166,7 +166,7 @@ class NekFile(AbstractFileReader):
     L = np.array(params["extent_mesh"][:]) - np.array(params["root_mesh"][:])
     origin = np.array(params["root_mesh"][:])
     N = np.array(params["shape_mesh"][:])
-    return numl, [(x_raw[0,0,0,:,i]-origin) * N/ L for i in range(numl)]
+    return numl, [(x[0,:,i]-origin) * N/ L for i in range(numl)]
 
 
   def write(self, x, u, p, t, ielm = -1):
