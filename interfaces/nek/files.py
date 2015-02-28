@@ -116,10 +116,10 @@ class NekFile(AbstractFileReader):
       pad = 136 + self.nelm*4
 
     #        offset -v          header and map -v        field -v
-    self.x_file.seek(ielm*self.word_size*3*self.norder**3 + pad,                 0) 
-    self.u_file.seek(ielm*self.word_size*3*self.norder**3 + pad + 3*self.ntot*self.word_size, 0) 
-    self.p_file.seek(ielm*self.word_size  *self.norder**3 + pad + 6*self.ntot*self.word_size, 0) 
-    self.t_file.seek(ielm*self.word_size  *self.norder**3 + pad + 7*self.ntot*self.word_size, 0) 
+    self.x_file.seek(ielm*self.word_size*3*self.norder**3 + pad,                 0)
+    self.u_file.seek(ielm*self.word_size*3*self.norder**3 + pad + 3*self.ntot*self.word_size, 0)
+    self.p_file.seek(ielm*self.word_size  *self.norder**3 + pad + 6*self.ntot*self.word_size, 0)
+    self.t_file.seek(ielm*self.word_size  *self.norder**3 + pad + 7*self.ntot*self.word_size, 0)
 
     return
 
@@ -137,11 +137,11 @@ class NekFile(AbstractFileReader):
     if numl < 0:
       return 0, None, None, None
 
-    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    u_raw = np.fromfile(self.u_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    p_raw = np.fromfile(self.p_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-    t_raw = np.fromfile(self.t_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-    
+    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64)
+    u_raw = np.fromfile(self.u_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64)
+    p_raw = np.fromfile(self.p_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64)
+    t_raw = np.fromfile(self.t_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64)
+
     x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
     u = np.reshape(u_raw, (self.norder**3,3,numl), order='F')
     p =              np.reshape(p_raw, (self.norder**3,  numl), order='F')
@@ -152,6 +152,7 @@ class NekFile(AbstractFileReader):
     return numl, x, u, p, t
 
   def get_global_index(self, num, params, pos = -1):
+    import numpy as np
     if pos < 0:
       pos = self.current_elm
     self.current_elm = pos
@@ -159,14 +160,14 @@ class NekFile(AbstractFileReader):
     numl = min(num, self.nelm - pos)
     if numl < 0:
         return 0, None
-    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64)
     x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
     self.current_elm += numl
     L = np.array(params["extent_mesh"][:]) - np.array(params["root_mesh"][:])
-    origin = np.array(params["root_mesh"][:]
+    origin = np.array(params["root_mesh"][:])
     N = np.array(params["shape_mesh"][:])
     return numl, [(x_raw[0,0,0,:,i]-origin) * N/ L for i in range(numl)]
-    
+
 
   def write(self, x, u, p, t, ielm = -1):
     """Write one element."""
