@@ -221,28 +221,50 @@ tokens = ('-%d' % i for i in count(1))
 def to_dask_array(fn, params):
     f = NekFile(fn)
     index = f.get_global_index(f.nelm, params)[1]
-
-    f = NekFile(fn)
-    example = f.get_elem(1)
     index = np.array(index)
 
-    xblockdims = tuple((d,) * m for d, m in zip(example[1].shape, index.max(axis=0)))
-    ublockdims = tuple((d,) * m for d, m in zip(example[2].shape, index.max(axis=0)))
-    pblockdims = tuple((d,) * m for d, m in zip(example[3].shape, index.max(axis=0)))
-    tblockdims = tuple((d,) * m for d, m in zip(example[4].shape, index.max(axis=0)))
+    blockshapes = {'x': (8, 8, 8, 3, 1),
+                   'u': (8, 8, 8, 3, 1),
+                   'p': (8, 8, 8, 1),
+                   't': (8, 8, 8, 1)}
+
+    xblockdims = (tuple((d,) * m
+                        for d, m in zip(blockshapes['x'], index.max(axis=0)))
+                    + ((3,), (1,)))
+    ublockdims = (tuple((d,) * m
+                        for d, m in zip(blockshapes['u'], index.max(axis=0)))
+                    + ((3,), (1,)))
+    pblockdims = (tuple((d,) * m
+                        for d, m in zip(blockshapes['p'], index.max(axis=0)))
+                    + ((1,),))
+    tblockdims = (tuple((d,) * m
+                        for d, m in zip(blockshapes['t'], index.max(axis=0)))
+                    + ((1,),))
 
     tok = next(tokens)
     dsk = {('load'+tok, -1): (NekFile, fn)}
     load = {('load' + tok, i): (emit_arrays, ('load'+tok, i-1))
             for i in range(f.nelm)}
 
-    x = {('x' + tok,) + tuple(idx): (getitem, (getitem, ('load'+tok, i), 0), 1)
+    x = {('x' + tok,) + tuple(idx) + (0, 0):
+            (np.ndarray.reshape,
+                (getitem, (getitem, ('load'+tok, i), 0), 1),
+                blockshapes['x'])
             for i, idx in enumerate(index.astype('i4').tolist())}
-    u = {('u' + tok,) + tuple(idx): (getitem, (getitem, ('load'+tok, i), 0), 2)
+    u = {('u' + tok,) + tuple(idx) + (0, 0):
+            (np.ndarray.reshape,
+                (getitem, (getitem, ('load'+tok, i), 0), 2),
+                blockshapes['u'])
             for i, idx in enumerate(index.astype('i4').tolist())}
-    p = {('p' + tok,) + tuple(idx): (getitem, (getitem, ('load'+tok, i), 0), 3)
+    p = {('p' + tok,) + tuple(idx) + (0,):
+            (np.ndarray.reshape,
+                (getitem, (getitem, ('load'+tok, i), 0), 3),
+                blockshapes['p'])
             for i, idx in enumerate(index.astype('i4').tolist())}
-    t = {('t' + tok,) + tuple(idx): (getitem, (getitem, ('load'+tok, i), 0), 4)
+    t = {('t' + tok,) + tuple(idx) + (0,):
+            (np.ndarray.reshape,
+                (getitem, (getitem, ('load'+tok, i), 0), 4),
+                blockshapes['t'])
             for i, idx in enumerate(index.astype('i4').tolist())}
 
     return [Array(merge(dsk, load, x), 'x'+tok, blockdims=xblockdims),
