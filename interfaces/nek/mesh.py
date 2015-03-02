@@ -37,6 +37,9 @@ class UniformMesh(AbstractMesh):
     self.fields['w'] = np.reshape(u[:,2,:], nshp, order = 'F')
     self.fields['p'] = np.reshape(p       , nshp, order = 'F')
     self.fields['t'] = np.reshape(t       , nshp, order = 'F')
+    self.root = np.zeros((3,self.nelm), order='F', dtype=int)
+    for i in range(3):
+      self.root[i,:] = (x[0,i,:] -self.origin[i]) / self.length[i]
     return
 
   def fld(self, name):
@@ -51,7 +54,6 @@ class UniformMesh(AbstractMesh):
       res = res.transpose([1,0,2,3])
     elif axis == 2:
       res = res.transpose([2,1,0,3])
-
     return res
 
   def int(self, fld, axis = (0,1,2,3)):
@@ -83,30 +85,27 @@ class UniformMesh(AbstractMesh):
     p = ['x', 'y', 'z']
     for i in range(3):
       if not i in axis:
+        root.append(i)
         slice_shape.append(full_shape[i]-1)
-        root.append(np.array((self.fields[p[i]][0,0,0,:] -self.origin[i]) / self.length[i], dtype=int))
       else:
-        root2.append(np.array((self.fields[p[i]][0,0,0,:] -self.origin[i]) / self.length[i], dtype=int))
+        root2.append(i)
         cept.append(int((intercept[i] -self.origin[i]) / self.length[i]))
 
     slice = np.zeros(slice_shape)
     if op != None:
       local = op.reduce(fld[:-1,:-1,:-1,:], axis)
+      sls = [tuple([np.s_[(self.norder - 1) * self.root[root[j],i]:(self.norder - 1) * (self.root[root[j],i]+1)] for j in range(len(root))]) for i in range(self.nelm)]
       for i in range(self.nelm):
-        foo = local[...,i]
-        starti = [7*root[j][i] for j in range(len(root))]
-        endi = [x + self.norder - 1 for x in starti]
-        sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
-        slice[sl] += foo
+        slice[sls[i]] += local[...,i]
     else:
       local = fld[:-1,:-1,:-1,:]
       for i in range(self.nelm):
-        here = all([root2[j][i] == cept[j] for j in range(len(cept))])
+        here = all([self.root[root2[j],i] == cept[j] for j in range(len(cept))])
         if not here: 
           continue
         sl = tuple([np.s_[0] if ax in axis else np.s_[:] for ax in range(3)] + [np.s_[i]])
         foo = local[sl]
-        starti = [7*root[j][i] for j in range(len(root))]
+        starti = [7*self.root[root[j],i] for j in range(len(root))]
         endi = [x + self.norder - 1 for x in starti]
         sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
         slice[sl] += foo
