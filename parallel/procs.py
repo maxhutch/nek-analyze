@@ -29,8 +29,7 @@ def outer_process(job):
   else:
     from multiprocessing import Pool
     p = Pool(processes=args.thread)
-    results = p.map(inner_process, jobs, chunksize = 1)
-    p.close()
+    results = p.imap_unordered(inner_process, jobs, chunksize = 1)
   if args.verbose:
     print('  Map took {:f}s on {:d} processes'.format(time_.time()-ttime, args.thread))
 
@@ -38,6 +37,8 @@ def outer_process(job):
   ttime = time_.time()
   for r in results:
     MR.reduce_(ans, r)
+  if args.thread >= 2:
+    p.close()
   if args.verbose:
     print('  Reduce took {:f}s on {:d} processes'.format(time_.time()-ttime, args.thread))
 
