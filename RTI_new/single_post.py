@@ -93,6 +93,16 @@ def post_series(results, params, args):
   plt.ylim(ymin = 0, ymax = 1)
   plt.savefig("{:s}-Fr.png".format(args.name))
 
+  # Drag relation
+  plt.figure()
+  ax1 = plt.subplot(111)
+  ax1.plot(hs, Fhs, label="Cabot")
+  ax1.plot(Hs, FHs, label="Visual")
+  plt.xlabel("h")
+  plt.ylabel("Fr")
+  plt.ylim(ymin=0)
+  plt.savefig("{:s}-drag.png".format(args.name))
+
   # Finally, stitch together frames into movies
   from utils.my_utils import make_movie
   for name in results[times[0], 'slices']:
