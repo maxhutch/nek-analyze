@@ -1,6 +1,17 @@
+def nek_fname(name, frame = 1, proc = 0, io_files = 1):
+  from math import log10
+  from os.path import dirname, basename
+  data_path = dirname(name)
+  data_tag  = basename(name) 
+  dir_width = int(log10(max(abs(io_files)-1,1)))+1
+  if io_files > 0:
+    fname = "{:s}{:0{width}d}.f{:05d}".format(name, proc, frame, width=dir_width)
+  else:
+    fname = "{:s}/A{:0{width}d}/{:s}{:0{width}d}.f{:05d}".format(data_path, proc, data_tag, proc, frame, width=dir_width)
+  return fname
+
 
 from interfaces.abstract import AbstractFileReader
-
 class NekFile(AbstractFileReader):
   def __init__(self, fname, base = None):
     # Do we have another file to base this off of?
