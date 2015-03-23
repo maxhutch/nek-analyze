@@ -19,6 +19,13 @@ class UniformMesh(AbstractMesh):
     self.gll = self.length[0] * (z+1.)/(2.)
     self.b1  = w * (self.length[0] / 2.)
     self.b2  = np.outer(self.b1, self.b1)
+    #self.b2[:,0]     = 0.5*self.b2[:,0]
+    #self.b2[:,-1]    = 0.5*self.b2[:,-1]
+    #self.b2[0,:]     = 0.5*self.b2[0,:]
+    #self.b2[-1,:]    = 0.5*self.b2[-1,:]
+    self.b2z = np.tile(self.b2, (self.norder,1,1)).transpose()
+    #self.b2z[:,:,0]  = 0.5*self.b2z[:,:,0]
+    #self.b2z[:,:,-1] = 0.5*self.b2z[:,:,-1]
     self.b3  = np.reshape(np.outer(self.b1,self.b2),
                           (self.norder,self.norder, self.norder))
     self.d1  = dhat(self.gll)
@@ -61,8 +68,13 @@ class UniformMesh(AbstractMesh):
       fld = self.fld(fld)
 
     # Note, this isn't quite right
-    foo = fld * np.tile(self.b3, (self.nelm,1,1,1)).transpose()
-    return np.add.reduce(foo, axis)
+    if len(axis) == 4:
+      foo = fld * np.tile(self.b3, (self.nelm,1,1,1)).transpose()
+      return np.add.reduce(foo, axis)
+    if len(axis) == 2 and axis[0] == 0 and axis[1] == 1:
+      foo = fld*np.tile(self.b2z.transpose(), (self.nelm,1,1,1)).transpose()
+      return np.add.reduce(foo, axis)
+
 
   def max(self, fld, axis = (0,1,2,3)):
     if isinstance(fld, str):
@@ -93,7 +105,11 @@ class UniformMesh(AbstractMesh):
 
     slice = np.zeros(slice_shape)
     if op != None:
-      local = op.reduce(fld[:-1,:-1,:-1,:], axis)
+      if op == 'int':
+        local = self.int(fld[:,:,:,:], axis)
+        local = local[...,:-1,:]
+      else:
+        local = op.reduce(fld[:-1,:-1,:-1,:], axis)
       sls = [tuple([np.s_[(self.norder - 1) * self.root[root[j],i]:(self.norder - 1) * (self.root[root[j],i]+1)] for j in range(len(root))]) for i in range(self.nelm)]
       for i in range(self.nelm):
         slice[sls[i]] += local[...,i]

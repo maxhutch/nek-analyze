@@ -55,6 +55,7 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   a = Struct(ans)
   p = Struct(params)
 
+
   mesh = UniformMesh(input_file, params)
   mesh.load(pos, nelm_to_read)
 
@@ -90,13 +91,13 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   # Total energy 
   u2 = np.square(mesh.fld('u'))
   a.Kinetic_x = mesh.int(u2)/2.
-  a.u2_proj_z = mesh.slice(u2, intercept, (0,1), np.add)
+  a.u2_proj_z = mesh.slice(u2, intercept, (0,1), 'int')
   v2 = np.square(mesh.fld('v'))
   a.Kinetic_y = mesh.int(v2)/2. 
-  a.v2_proj_z = mesh.slice(v2, intercept, (0,1), np.add)
+  a.v2_proj_z = mesh.slice(v2, intercept, (0,1), 'int')
   w2 = np.square(mesh.fld('w'))
   a.Kinetic_z = mesh.int(w2)/2.
-  a.w2_proj_z = mesh.slice(w2, intercept, (0,1), np.add)
+  a.w2_proj_z = mesh.slice(w2, intercept, (0,1), 'int')
   a.slices += [ 'u2_proj_z',  'v2_proj_z',  'w2_proj_z']
   a.red_sum += ['Kinetic_x', 'Kinetic_y', 'Kinetic_z']
  
@@ -112,9 +113,9 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   # Take slices
   a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
   a.t_yz = mesh.slice(mesh.fld('t'), intercept, (0,))
-  a.t_proj_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), np.add)
-  a.t_abs_proj_z = mesh.slice(np.abs(mesh.fld('t')), intercept, (0,1), np.add)
-  a.t_sq_proj_z  = mesh.slice(np.square(mesh.fld('t')), intercept, (0,1), np.add)
+  a.t_proj_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), 'int')
+  a.t_abs_proj_z = mesh.slice(np.abs(mesh.fld('t')), intercept, (0,1), 'int')
+  a.t_sq_proj_z  = mesh.slice(np.square(mesh.fld('t')), intercept, (0,1), 'int')
   a.u_xy = mesh.slice(mesh.fld('u'), intercept, (2,))
   a.v_xy = mesh.slice(mesh.fld('v'), intercept, (2,))
   a.w_xy = mesh.slice(mesh.fld('w'), intercept, (2,))
@@ -131,7 +132,7 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   omegaz = dvdx - dudy 
   a.vorticity_xy = mesh.slice(omegaz,
                               intercept, (2,))
-  a.vorticity_proj_z = mesh.slice(np.square(omegaz), intercept, (0,1), np.add)
+  a.vorticity_proj_z = mesh.slice(np.square(omegaz), intercept, (0,1), 'int')
   dwdy = mesh.dx('w',1)
   dvdz = mesh.dx('v',2)
   a.vorticity_yz = mesh.slice(dwdy - dvdz, intercept, (0,))
@@ -141,9 +142,9 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   du2 = np.square(mesh.dx('u',0))
   dv2 = np.square(mesh.dx('v',1))
   dw2 = np.square(mesh.dx('w',2))
-  a.du2_proj_z = mesh.slice(du2, intercept, (0,1), np.add)
-  a.dv2_proj_z = mesh.slice(dv2, intercept, (0,1), np.add)
-  a.dw2_proj_z = mesh.slice(dw2, intercept, (0,1), np.add)
+  a.du2_proj_z = mesh.slice(du2, intercept, (0,1), 'int')
+  a.dv2_proj_z = mesh.slice(dv2, intercept, (0,1), 'int')
+  a.dw2_proj_z = mesh.slice(dw2, intercept, (0,1), 'int')
   a.slices += ['du2_proj_z', 'dv2_proj_z', 'dw2_proj_z']
 
   diss = p.viscosity * (
