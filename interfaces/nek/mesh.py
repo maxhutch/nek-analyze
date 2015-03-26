@@ -75,7 +75,6 @@ class UniformMesh(AbstractMesh):
       foo = fld*np.tile(self.b2z.transpose(), (self.nelm,1,1,1)).transpose()
       return np.add.reduce(foo, axis)
 
-
   def max(self, fld, axis = (0,1,2,3)):
     if isinstance(fld, str):
       fld = self.fld(fld)

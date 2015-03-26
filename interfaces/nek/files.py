@@ -54,8 +54,6 @@ class NekFile(AbstractFileReader):
     self.p_file = open(fname, 'rb')
     self.t_file = open(fname, 'rb')
     self.seek(0)
-    # Then close it
-    self.close()
 
   def init2(self, base, fname):
     # copy state and write header
@@ -80,8 +78,6 @@ class NekFile(AbstractFileReader):
     self.p_file = open(fname, 'wb')
     self.t_file = open(fname, 'wb')
     self.seek(0)
-    # Then close it
-    self.close()
 
   def close(self):
     """Close file pointers and point handles to None."""
@@ -195,3 +191,5 @@ class NekFile(AbstractFileReader):
 
     return
 
+class DefaultFileReader(NekFile):
+  pass 
