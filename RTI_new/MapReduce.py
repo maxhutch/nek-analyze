@@ -21,32 +21,34 @@ def MR_init(args, params, frame):
   ans['red_min'] = []
   ans['red_sum'] = []
 
+  from copy import deepcopy
+  base = deepcopy(ans)
   # return a cleaned up version of locals
 
   from interfaces.nek.files import NekFile, nek_fname
   njob_per_file = max(1+int((args.thread-1) / abs(int(params["io_files"]))),1)
   jobs = []
-  from copy import deepcopy
   for j in range(abs(int(params["io_files"]))):
       fname = nek_fname(args.name, frame, j, params["io_files"])
       input_file = NekFile(fname)
+      ans['fname'] = fname
       elm_per_thread = int((input_file.nelm-1) / njob_per_file) + 1
       for i in range(njob_per_file):
           jobs.append([
               (i * elm_per_thread, min((i+1)*elm_per_thread, input_file.nelm)),
-              fname,
               params,
               args,
               deepcopy(ans)])  
       input_file.close()
-  return jobs
+  return jobs, base
 
 
-def map_(input_file, pos, nelm_to_read, params, scratch = None):
+def map_(pos, nelm_to_read, params, scratch = None, last = False):
   """ Map operations onto chunk of elements """
   import numpy as np
   from tictoc import tic, toc
   from interfaces.nek.mesh import UniformMesh
+  from interfaces.nek.files import NekFile
 
   ans = {}
   if scratch != None:
@@ -55,9 +57,10 @@ def map_(input_file, pos, nelm_to_read, params, scratch = None):
   a = Struct(ans)
   p = Struct(params)
 
-
+  input_file = NekFile(ans['fname'])
   mesh = UniformMesh(input_file, params)
   mesh.load(pos, nelm_to_read)
+  input_file.close()
 
   # We need to union these sets
   a.red_uin = ['red_max', 'red_min', 'red_sum', 'slices']
