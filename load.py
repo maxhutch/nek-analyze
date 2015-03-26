@@ -14,7 +14,7 @@ with open("{:s}.json".format(args.name), 'r') as f:
   params = json.load(f)
 
 # Set up the frame arguments
-from parallel.procs import outer_process
+from mapcombine import outer_process
 jobs = [[args, params, i] for i in range(args.frame, args.frame_end+1)]
 
 # schedule the frames, one IPython process each
@@ -32,7 +32,7 @@ else:
 from chest import Chest
 c = Chest(path='{:s}-results'.format(args.name))
 for i, res in enumerate(stuff):
-  c1 = Chest(path=res)
+  c1 = Chest(path=res['cpath'])
   c.update(c1)
   c1.drop()
 
