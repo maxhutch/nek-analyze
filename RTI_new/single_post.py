@@ -136,6 +136,18 @@ def plot_slice(data, name):
     plt.close()
   return
 
+def plot_frame(ans, params, args):
+  # Analysis! 
+  if args.verbose:
+    print("  Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
+    print("  Max speed: {:f}".format(ans['UAbs']))
+    print("  Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
+
+  for name in ans['slices']:
+    plot_slice(ans[name], "{:s}-{:s}-{:04d}".format(args.name,name, ans['frame']))
+
+  return 
+
 def post_frame(ans, params, args):
   # Analysis! 
   ans['TAbs'] = max(ans['TMax'], -ans['TMin'])
@@ -162,18 +174,17 @@ def post_frame(ans, params, args):
              - find_root(zs, ans["t_proj_z"], y0 = tmin + (tmax - tmin)*0.1)) / 2.
 
   ans["H"] = h_visual
+  plot_frame(ans, params, args)
 
-  return 
+  from chest import Chest
+  cpath = '{:s}-chest-{:03d}'.format(args.name, ans["frame"])
+  c = Chest(path=cpath)
+  for key in ans.keys():
+    c[ans['time'], key] = ans[key]
+  ans.clear()
+  c.flush()
 
-def plot_frame(ans, params, args):
-  # Analysis! 
-  if args.verbose:
-    print("  Extremal temperatures {:f}, {:f}".format(ans['TMax'], ans['TMin']))
-    print("  Max speed: {:f}".format(ans['UAbs']))
-    print("  Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
-
-  for name in ans['slices']:
-    plot_slice(ans[name], "{:s}-{:s}-{:04d}".format(args.name,name, ans['frame']))
+  ans["cpath"] = cpath
 
   return 
 
