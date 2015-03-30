@@ -30,16 +30,17 @@ def MR_init(args, params, frame):
   jobs = []
   for j in range(abs(int(params["io_files"]))):
       fname = nek_fname(args.name, frame, j, params["io_files"])
-      input_file = NekFile(fname)
-      ans['fname'] = fname
-      elm_per_thread = int((input_file.nelm-1) / njob_per_file) + 1
-      for i in range(njob_per_file):
-          jobs.append([
-              (i * elm_per_thread, min((i+1)*elm_per_thread, input_file.nelm)),
-              params,
-              args,
-              deepcopy(ans)])  
-      input_file.close()
+      with open(fname, 'rb') as f:
+        input_file = NekFile(f)
+        ans['fname'] = fname
+        elm_per_thread = int((input_file.nelm-1) / njob_per_file) + 1
+        for i in range(njob_per_file):
+            jobs.append([
+                (i * elm_per_thread, min((i+1)*elm_per_thread, input_file.nelm)),
+                params,
+                args,
+                deepcopy(ans)])  
+        input_file.close()
   return jobs, base
 
 
@@ -57,10 +58,11 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a = Struct(ans)
   p = Struct(params)
 
-  input_file = NekFile(ans['fname'])
-  mesh = UniformMesh(input_file, params)
-  mesh.load(pos, nelm_to_read)
-  input_file.close()
+  with open(ans['fname'], 'rb') as f:
+    input_file = NekFile(f)
+    mesh = UniformMesh(input_file, params)
+    mesh.load(pos, nelm_to_read)
+    input_file.close()
 
   # We need to union these sets
   a.red_uin = ['red_max', 'red_min', 'red_sum', 'slices']

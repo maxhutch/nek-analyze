@@ -13,16 +13,15 @@ def nek_fname(name, frame = 1, proc = 0, io_files = 1):
 
 from interfaces.abstract import AbstractFileReader
 class NekFile(AbstractFileReader):
-  def __init__(self, fname, base = None):
+  def __init__(self, f, base = None):
     # Do we have another file to base this off of?
     if base != None:
       self.init2(base, fname)
       return
 
     import struct
-    self.fname = fname
-    self.x_file = open(fname, 'rb')
-    self.header = self.x_file.read(132)
+    self.f = f
+    self.header = self.f.read(132)
     htoks = str(self.header).split()
     self.word_size = int(htoks[1])
     self.norder = int(htoks[2])
@@ -39,7 +38,7 @@ class NekFile(AbstractFileReader):
     self.ntot = self.nelm * self.norder**3
 
     #''' Check the test float '''
-    self.test = self.x_file.read(4)
+    self.test = self.f.read(4)
     self.test_tuple = struct.unpack('f', self.test)
     byteswap = abs(self.test_tuple[0] - 6.543210029) > 0.00001
     if byteswap:
@@ -50,10 +49,7 @@ class NekFile(AbstractFileReader):
 
     # Test opening the file
     self.current_elm = 0
-    self.u_file = open(fname, 'rb')
-    self.p_file = open(fname, 'rb')
-    self.t_file = open(fname, 'rb')
-    self.seek(0)
+    self.seek(0,0)
 
   def init2(self, base, fname):
     # copy state and write header
@@ -77,44 +73,14 @@ class NekFile(AbstractFileReader):
     self.u_file = open(fname, 'wb')
     self.p_file = open(fname, 'wb')
     self.t_file = open(fname, 'wb')
-    self.seek(0)
+    self.seek(0,0)
 
   def close(self):
     """Close file pointers and point handles to None."""
-    if self.x_file != None:
-      self.x_file.close(); self.x_file = None
-      self.u_file.close(); self.u_file = None
-      self.p_file.close(); self.p_file = None
-      self.t_file.close(); self.t_file = None
     return
 
-  def seek(self, ielm, readable = False, writable = False):
-    """Move file pointers to point to the ielm-th element and file mode."""
-
-    # Check if file is byte-writable
-    if writable and (self.x_file == None or not self.x_file.writable()):
-      # [re]open as byte-writable
-      if self.x_file != None and not self.x_file.closed:
-        self.x_file.close()
-        self.u_file.close()
-        self.p_file.close()
-        self.t_file.close()
-      self.x_file = open(self.fname, 'wb')
-      self.u_file = open(self.fname, 'wb')
-      self.p_file = open(self.fname, 'wb')
-      self.t_file = open(self.fname, 'wb')
-    # Check if file is byte-readable
-    if readable and (self.x_file == None or not self.x_file.readable()):
-      # [re]open as byte-readable
-      if self.x_file != None and not self.x_file.closed:
-        self.x_file.close()
-        self.u_file.close()
-        self.p_file.close()
-        self.t_file.close()
-      self.x_file = open(self.fname, 'rb')
-      self.u_file = open(self.fname, 'rb')
-      self.p_file = open(self.fname, 'rb')
-      self.t_file = open(self.fname, 'rb')
+  def seek(self, ielm, ifield):
+    """Move file pointers to point to the ielm-th element of the ifield-th field"""
 
     # Seek to the right positions
     if self.padded >= 0:
@@ -122,11 +88,8 @@ class NekFile(AbstractFileReader):
     else:
       pad = 136 + self.nelm*4
 
-    #        offset -v          header and map -v        field -v
-    self.x_file.seek(ielm*self.word_size*3*self.norder**3 + pad,                 0) 
-    self.u_file.seek(ielm*self.word_size*3*self.norder**3 + pad + 3*self.ntot*self.word_size, 0) 
-    self.p_file.seek(ielm*self.word_size  *self.norder**3 + pad + 6*self.ntot*self.word_size, 0) 
-    self.t_file.seek(ielm*self.word_size  *self.norder**3 + pad + 7*self.ntot*self.word_size, 0) 
+    #        offset -v                      header and map -v        field -v
+    self.f.seek(ielm*self.word_size*3*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
 
     return
 
@@ -135,19 +98,21 @@ class NekFile(AbstractFileReader):
     import numpy as np
     if pos < 0:
       pos = self.current_elm
-      self.seek(self.current_elm, readable = True)
     else:
       self.current_elm = pos
-      self.seek(pos, readable = True)
 
     numl = min(num, self.nelm - pos)
     if numl < 0:
       return 0, None, None, None
 
-    x_raw = np.fromfile(self.x_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    u_raw = np.fromfile(self.u_file, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    p_raw = np.fromfile(self.p_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-    t_raw = np.fromfile(self.t_file, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+    self.seek(pos, 0)
+    x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+    self.seek(pos, 3)
+    u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+    self.seek(pos, 6)
+    p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+    self.seek(pos, 7)
+    t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
     
     x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
     u = np.reshape(u_raw, (self.norder**3,3,numl), order='F')
