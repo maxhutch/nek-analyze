@@ -127,10 +127,22 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.w_yz = mesh.slice(mesh.fld('w'), intercept, (0,))
   a.p_xy = mesh.slice(mesh.fld('p'), intercept, (2,))
   a.p_yz = mesh.slice(mesh.fld('p'), intercept, (0,))
+  fz = mesh.fld('t') * p.atwood * p.g - mesh.dx('p', 2) 
+  a.fz_xy = mesh.slice(fz, intercept, (2,))
+  a.fz_yz = mesh.slice(fz, intercept, (0,))
+  pflux = mesh.fld('t') * mesh.fld('w')
+  pflux[mesh.fld('t') < 0] = 0.
+  a.flux_proj_z = mesh.slice(pflux, intercept, (0,1), 'int')
   a.slices += [
                't_xy', 't_yz', 't_proj_z', 't_abs_proj_z', 't_sq_proj_z',
-               'p_xy', 'p_yz', 'u_xy', 'v_xy', 'w_xy', 'w_yz'
+               'p_xy', 'p_yz', 'u_xy', 'v_xy', 'w_xy', 'w_yz', 'fz_xy', 'fz_yz',
+               'flux_proj_z'
               ]
+
+  a.w_max_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.maximum)
+  a.w_min_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.minimum)
+  a.red_max += ['w_max_z']
+  a.red_min += ['w_min_z']
 
   dvdx = mesh.dx('v',0)
   dudy = mesh.dx('u',1)
@@ -165,6 +177,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.slices += ['d_xy', 'd_yz']
 
   a.red_sum += a.slices
+  a.slices += ['w_max_z', 'w_min_z']
   return ans
 
 def reduce_(whole, part):
@@ -184,15 +197,18 @@ def reduce_(whole, part):
   # Handle other types of reductions
   for key in whole['red_max']:
     if key in whole and key in part:
-      if isinstance(whole, np.ndarray):
-        whole[key] = np.max(whole[key], part[key])
+      if isinstance(whole[key], np.ndarray):
+        whole[key] = np.maximum(whole[key], part[key])
       else:
         whole[key] = max(whole[key], part[key])
     elif key in part:
       whole[key] = part[key]
   for key in whole['red_min']:
     if key in whole and key in part:
-      whole[key] = np.min(whole[key], part[key])
+      if isinstance(whole[key], np.ndarray):
+        whole[key] = np.minimum(whole[key], part[key])
+      else:
+        whole[key] = min(whole[key], part[key])
     elif key in part:
       whole[key] = part[key]
   for key in whole['red_sum']:
