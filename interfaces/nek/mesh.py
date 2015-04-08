@@ -60,7 +60,7 @@ class UniformMesh(AbstractMesh):
     if axis == 1:
       res = res.transpose([1,0,2,3])
     elif axis == 2:
-      res = res.transpose([2,1,0,3])
+      res = res.transpose([1,2,0,3])
     return res
 
   def int(self, fld, axis = (0,1,2,3)):
@@ -110,8 +110,13 @@ class UniformMesh(AbstractMesh):
       else:
         local = op.reduce(fld[:-1,:-1,:-1,:], axis)
       sls = [tuple([np.s_[(self.norder - 1) * self.root[root[j],i]:(self.norder - 1) * (self.root[root[j],i]+1)] for j in range(len(root))]) for i in range(self.nelm)]
-      for i in range(self.nelm):
-        slice[sls[i]] += local[...,i]
+      if op == 'int':
+        for i in range(self.nelm):
+          slice[sls[i]] =  np.add(slice[sls[i]], local[...,i])
+      else:
+        for i in range(self.nelm):
+          slice[sls[i]] =  op(slice[sls[i]], local[...,i])
+
     else:
       local = fld[:-1,:-1,:-1,:]
       for i in range(self.nelm):
