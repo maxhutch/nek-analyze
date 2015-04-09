@@ -60,11 +60,25 @@ def command_line_ui():
                  help="Module containing post_frame and post_series")
   p.add_argument("-v",  "--verbose", action="store_true", default=False,
                  help="Should I be really verbose, that is: wordy?")
+  p.add_argument("--params", dest="param_path", default=None,
+                 help="Location of param file")
+  p.add_argument("--chest", dest="chest_path", default=None,
+                 help="Location of chest directory")
+  p.add_argument("--figs", dest="fig_path", default=None,
+                 help="Location of figures")
  
   # Load the arguments
   args = p.parse_args()
   if args.frame_end == -1:
     args.frame_end = args.frame
   args.series = (args.frame != args.frame_end) or args.series
-  
+
+  from os.path import dirname 
+  if args.param_path is None:
+    args.param_path = "{:s}.json".format(args.name) 
+  if args.chest_path is None:
+    args.chest_path = "{:s}-results".format(args.name) 
+  if args.fig_path is None:
+    args.fig_path = "{:s}".format(dirname(args.name)) 
+ 
   return args

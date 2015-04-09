@@ -143,8 +143,9 @@ def plot_frame(ans, params, args):
     print("  Max speed: {:f}".format(ans['UAbs']))
     print("  Cell Pe: {:f}, Cell Re: {:f}".format(ans['PeCell'], ans['ReCell']))
 
+  run_name = basename(args.name)
   for name in ans['slices']:
-    plot_slice(ans[name], "{:s}-{:s}-{:04d}".format(args.name,name, ans['frame']))
+    plot_slice(ans[name], "{:s}/{:s}-{:s}-{:04d}".format(args.fig_path, run_name,name, ans['frame']))
 
   return 
 
@@ -177,7 +178,7 @@ def post_frame(ans, params, args):
   plot_frame(ans, params, args)
 
   from chest import Chest
-  cpath = '{:s}-chest-{:03d}'.format(args.name, ans["frame"])
+  cpath = '{:s}-chest-{:03d}'.format(args.chest_path, ans["frame"])
   c = Chest(path=cpath)
   for key in ans.keys():
     c[ans['time'], key] = ans[key]

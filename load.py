@@ -10,7 +10,7 @@ args = command_line_ui()
 
 # load params from genrun.py input dictionary
 import json
-with open("{:s}.json".format(args.name), 'r') as f:
+with open(args.param_path, 'r') as f:
   params = json.load(f)
 
 # Set up the frame arguments
@@ -30,7 +30,7 @@ else:
 
 # insert new results into the out-of-core dictionary (Chest)
 from chest import Chest
-c = Chest(path='{:s}-results'.format(args.name))
+c = Chest(path=args.chest_path)
 for i, res in enumerate(stuff):
   c1 = Chest(path=res['cpath'])
   c.update(c1)
