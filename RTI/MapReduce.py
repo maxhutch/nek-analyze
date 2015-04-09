@@ -1,5 +1,3 @@
-
-
 from utils.struct import Struct
 
 def MR_init(args, params, frame):
@@ -30,17 +28,22 @@ def MR_init(args, params, frame):
   jobs = []
   for j in range(abs(int(params["io_files"]))):
       fname = nek_fname(args.name, frame, j, params["io_files"])
-      with open(fname, 'rb') as f:
-        input_file = NekFile(f)
-        ans['fname'] = fname
-        elm_per_thread = int((input_file.nelm-1) / njob_per_file) + 1
-        for i in range(njob_per_file):
-            jobs.append([
-                (i * elm_per_thread, min((i+1)*elm_per_thread, input_file.nelm)),
-                params,
-                args,
-                deepcopy(ans)])  
-        input_file.close()
+      ans['fname'] = fname
+      if np.prod(np.array(params["shape_mesh"])) % abs(int(params["io_files"])) == 0:
+        nelm = np.prod(np.array(params["shape_mesh"])) / abs(int(params["io_files"]))
+      else:
+        with open(fname, 'rb') as f:
+          input_file = NekFile(f)
+          nelm = input_file.nelm
+          input_file.close()
+      
+      elm_per_thread = int((nelm-1) / njob_per_file) + 1
+      for i in range(njob_per_file):
+          jobs.append([
+              (i * elm_per_thread, min((i+1)*elm_per_thread, nelm)),
+              params,
+              args,
+              deepcopy(ans)])  
   return jobs, base
 
 
@@ -50,6 +53,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   from tictoc import tic, toc
   from interfaces.nek.mesh import UniformMesh
   from interfaces.nek.files import NekFile
+  from glopen import glopen
 
   ans = {}
   if scratch != None:
@@ -58,11 +62,20 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a = Struct(ans)
   p = Struct(params)
 
-  with open(ans['fname'], 'rb') as f:
-    input_file = NekFile(f)
-    mesh = UniformMesh(input_file, params)
-    mesh.load(pos, nelm_to_read)
-    input_file.close()
+  #with open(ans['fname'], 'rb') as f:
+  if "input_file" not in ans:
+    a.ofile = open(ans['fname'], 'rb')
+    a.input_file = NekFile(a.ofile)
+    #a.glopen = glopen(ans['fname'], 'rb', endpoint="maxhutch#alpha-admin/tmp/")
+    #a.input_file = NekFile(a.glopen.__enter__())
+
+  mesh = UniformMesh(a.input_file, params)
+  mesh.load(pos, nelm_to_read)
+
+  if last:
+    a.input_file.close()
+    a.ofile.close()
+    #a.glopen.__exit__(None, None, None)
 
   # We need to union these sets
   a.red_uin = ['red_max', 'red_min', 'red_sum', 'slices']
@@ -88,7 +101,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.red_min.append('TMin')
   a.UAbs   = float( max_speed)
   a.red_max.append('UAbs')
-  a.time   = input_file.time
+  a.time   = a.input_file.time
   a.red_max.append('time')
   a.dx_max = float(np.max(mesh.gll[1:] - mesh.gll[:-1]))
   a.red_max.append('dx_max')
