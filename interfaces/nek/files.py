@@ -88,8 +88,8 @@ class NekFile(AbstractFileReader):
     else:
       pad = 136 + self.nelm*4
 
-    #        offset -v                      header and map -v        field -v
-    self.f.seek(ielm*self.word_size*3*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+    #        offset -v                 header and map -v        field -v
+    self.f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
 
     return
 
@@ -102,12 +102,12 @@ class NekFile(AbstractFileReader):
       self.current_elm = pos
 
     numl = min(num, self.nelm - pos)
-    if numl < 0:
+    if numl <= 0:
       return 0, None, None, None
 
-    self.seek(pos, 0)
+    self.seek(pos*3, 0)
     x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    self.seek(pos, 3)
+    self.seek(pos*3, 3)
     u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
     self.seek(pos, 6)
     p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
