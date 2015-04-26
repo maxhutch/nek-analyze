@@ -66,6 +66,12 @@ def command_line_ui():
                  help="Location of chest directory")
   p.add_argument("--figs", dest="fig_path", default=None,
                  help="Location of figures")
+  p.add_argument("--MR_init", default=None, 
+                 help="MapReduce init function.  Loaded from --mapreduce if None.")
+  p.add_argument("--reduce", default=None, 
+                 help="Reduce function.  Loaded from --mapreduce if None.")
+  p.add_argument("--map", default=None, 
+                 help="Map function.  Loaded from --mapreduce if None.")
  
   # Load the arguments
   args = p.parse_args()
