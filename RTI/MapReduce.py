@@ -127,6 +127,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
                               )
   a.red_sum.append('Potential')
 
+  total_pressure = .5*(u2+v2+w2) + mesh.fld('p') - mesh.fld('t') * p.atwood * p.g * mesh.fld('z')
    
   # Take slices
   a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
@@ -137,6 +138,8 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.u_xy = mesh.slice(mesh.fld('u'), intercept, (2,))
   a.v_xy = mesh.slice(mesh.fld('v'), intercept, (2,))
   a.w_xy = mesh.slice(mesh.fld('w'), intercept, (2,))
+  a.u_yz = mesh.slice(mesh.fld('u'), intercept, (0,))
+  a.v_yz = mesh.slice(mesh.fld('v'), intercept, (0,))
   a.w_yz = mesh.slice(mesh.fld('w'), intercept, (0,))
   a.p_xy = mesh.slice(mesh.fld('p'), intercept, (2,))
   a.p_yz = mesh.slice(mesh.fld('p'), intercept, (0,))
@@ -146,10 +149,14 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   pflux = mesh.fld('t') * mesh.fld('w')
   pflux[mesh.fld('t') < 0] = 0.
   a.flux_proj_z = mesh.slice(pflux, intercept, (0,1), 'int')
+  a.total_pressure_xy = mesh.slice(total_pressure, intercept, (2,))
+  a.total_pressure_yz = mesh.slice(total_pressure, intercept, (0,))
+
   a.slices += [
                't_xy', 't_yz', 't_proj_z', 't_abs_proj_z', 't_sq_proj_z',
-               'p_xy', 'p_yz', 'u_xy', 'v_xy', 'w_xy', 'w_yz', 'fz_xy', 'fz_yz',
-               'flux_proj_z'
+               'p_xy', 'p_yz', 'u_xy', 'v_xy', 'w_xy', 
+               'u_yz', 'v_yz', 'w_yz', 'fz_xy', 'fz_yz',
+               'flux_proj_z', 'total_pressure_xy', 'total_pressure_yz'
               ]
 
   a.w_max_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.maximum)
