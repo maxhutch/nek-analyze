@@ -120,7 +120,7 @@ def plot_slice(data, name):
 
   min_size = 6
   if len(data.shape) == 2:
-    fsize = np.array(data.shape) * min_size / min(data.shape)
+    fsize = np.minimum(np.array(data.shape) * min_size / min(data.shape), np.array([128, 128]))
     plt.figure(figsize=tuple(fsize.tolist()))
     ax = plt.subplot(111)
     ax.imshow(data.transpose(), origin='lower')
