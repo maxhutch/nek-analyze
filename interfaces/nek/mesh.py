@@ -125,7 +125,7 @@ class UniformMesh(AbstractMesh):
           continue
         sl = tuple([np.s_[0] if ax in axis else np.s_[:] for ax in range(3)] + [np.s_[i]])
         foo = local[sl]
-        starti = [7*self.root[root[j],i] for j in range(len(root))]
+        starti = [(self.norder-1)*self.root[root[j],i] for j in range(len(root))]
         endi = [x + self.norder - 1 for x in starti]
         sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
         slice[sl] += foo
