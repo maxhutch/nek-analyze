@@ -13,7 +13,7 @@ def nek_fname(name, frame = 1, proc = 0, io_files = 1):
 
 from interfaces.abstract import AbstractFileReader
 class NekFile(AbstractFileReader):
-  def __init__(self, f, base = None):
+  def __init__(self, f, pf = None, base = None):
     # Do we have another file to base this off of?
     if base != None:
       self.init2(base, fname)
@@ -21,6 +21,8 @@ class NekFile(AbstractFileReader):
 
     import struct
     self.f = f
+    self.pf = pf
+
     self.header = self.f.read(132)
     htoks = str(self.header).split()
     self.word_size = int(htoks[1])
@@ -79,7 +81,7 @@ class NekFile(AbstractFileReader):
     """Close file pointers and point handles to None."""
     return
 
-  def seek(self, ielm, ifield):
+  def seek(self, ielm, ifield, f = None):
     """Move file pointers to point to the ielm-th element of the ifield-th field"""
 
     # Seek to the right positions
@@ -89,7 +91,10 @@ class NekFile(AbstractFileReader):
       pad = 136 + self.nelm*4
 
     #        offset -v                 header and map -v        field -v
-    self.f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+    if f is None:
+      self.f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+    else:
+      f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
 
     return
 
@@ -105,15 +110,25 @@ class NekFile(AbstractFileReader):
     if numl <= 0:
       return 0, None, None, None
 
-    self.seek(pos*3, 0)
-    x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    self.seek(pos*3, 3)
-    u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-    self.seek(pos, 6)
-    p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-    self.seek(pos, 7)
-    t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-    
+    if self.pf is None:
+      self.seek(pos*3, 0)
+      x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos*3, 3)
+      u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos, 6)
+      p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+      self.seek(pos, 7)
+      t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+    else:
+      self.seek(pos*3, 0, self.pf)
+      x_raw = np.fromfile(self.pf, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos*3, 0)
+      u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos, 3)
+      p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+      self.seek(pos, 4)
+      t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+   
     x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
     u = np.reshape(u_raw, (self.norder**3,3,numl), order='F')
     p =              np.reshape(p_raw, (self.norder**3,  numl), order='F')
