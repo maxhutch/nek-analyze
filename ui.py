@@ -72,6 +72,8 @@ def command_line_ui():
                  help="Reduce function.  Loaded from --mapreduce if None.")
   p.add_argument("--map", default=None, 
                  help="Map function.  Loaded from --mapreduce if None.")
+  p.add_argument("--single_pos", default=False, action="store_true", 
+                 help="Position only in first output")
  
   # Load the arguments
   args = p.parse_args()
