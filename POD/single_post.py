@@ -26,6 +26,11 @@ def post_frame(ans, params, args):
   ans["ev"] = ev[idx]
   ans["vecs"] = vecs[:,idx]
 
+  print(ans["overlap"])
+  print("Singular values:")
+  print(ans["ev"])
+  print(ans["vecs"])
+
   from chest import Chest
   cpath = '{:s}-chest-{:03d}'.format(args.chest_path, ans["frame"])
   c = Chest(path=cpath)

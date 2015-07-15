@@ -4,14 +4,6 @@ def MR_init(args, params, frame):
   """ Initialize MapReduce data """
   import numpy as np
 
-  params['extent'] = list(np.array(params['extent_mesh']) - np.array(params['root_mesh']))
-  params['ninterp'] = int(args.ninterp*params['order'])
-  if args.verbose:
-    print("  Grid is ({:f}, {:f}, {:f}) [{:d}x{:d}x{:d}] with order {:d}".format(
-            params['extent'][0], params['extent'][1], params['extent'][2], 
-            params['shape_mesh'][0], params['shape_mesh'][1], params['shape_mesh'][2],
-            params['order']))
-
   # base cases
   ans = {}
   ans['red_uin'] = []
@@ -23,7 +15,7 @@ def MR_init(args, params, frame):
   base = deepcopy(ans)
   # return a cleaned up version of locals
 
-  from interfaces.nek.files import NekFile, nek_fname
+  from interfaces.nek.files import NekFld, nek_fname
   njob_per_file = max(1+int((args.thread-1) / abs(int(params["io_files"]))),1)
   jobs = []
   for j in range(abs(int(params["io_files"]))):
@@ -36,7 +28,7 @@ def MR_init(args, params, frame):
         nelm = np.prod(np.array(params["shape_mesh"])) / abs(int(params["io_files"]))
       else:
         with open(fname, 'rb') as f:
-          input_file = NekFile(f)
+          input_file = NekFld(f)
           nelm = input_file.nelm
           input_file.close()
       
@@ -54,8 +46,8 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   """ Map operations onto chunk of elements """
   import numpy as np
   from tictoc import tic, toc
-  from interfaces.nek.mesh import UniformMesh
-  from interfaces.nek.files import NekFile
+  from interfaces.nek.mesh import GeneralMesh
+  from interfaces.nek.files import NekFld
   from glopen import glopen
 
   ans = {}
@@ -71,15 +63,15 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   if "input_file" not in ans:
       a.ofile = []
       a.input_file = []
-      for i in range(p.snapshots):
-        a.ofile.append(open(ans['fname'], 'rb'))
-        a.input_file.append(NekFile(a.ofile[-1]))
+      for fname in ans['fname']:
+        a.ofile.append(open(fname, 'rb'))
+        a.input_file.append(NekFld(a.ofile[-1]))
     #a.glopen = glopen(ans['fname'], 'rb', endpoint="maxhutch#alpha-admin/tmp/")
     #a.input_file = NekFile(a.glopen.__enter__())
 
   meshs = []
   for input_file in a.input_file:
-    meshs.append(UniformMesh(input_file, params))
+    meshs.append(GeneralMesh(input_file, params))
     meshs[-1].load(pos, nelm_to_read)
   
   if last:
@@ -93,13 +85,15 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.red_uin = ['red_max', 'red_min', 'red_sum', 'slices']
   a.slices = []
 
-  a.time   = a.input_file.time
+  a.time   = a.input_file[0].time
   a.red_max.append('time')
 
   a.overlap = np.zeros((p.snapshots, p.snapshots))
   for i in range(p.snapshots):
+    vel_mag_i = np.sqrt(np.square(meshs[i].fld('u')) + np.square(meshs[i].fld('v')) + np.square(meshs[i].fld('w')))
     for j in range(p.snapshots):
-      a.overlap[i,j] = meshs[0].int(meshs[i].fld('u') * meshs[j].fld('u'))
+      vel_mag_j = np.sqrt(np.square(meshs[j].fld('u')) + np.square(meshs[j].fld('v')) + np.square(meshs[j].fld('w')))
+      a.overlap[i,j] = meshs[0].int(vel_mag_i * vel_mag_j)
 
   a.red_sum.append("overlap")
   toc('map')
