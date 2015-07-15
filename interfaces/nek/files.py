@@ -171,5 +171,137 @@ class NekFile(AbstractFileReader):
 
     return
 
+class NekFld(AbstractFileReader):
+  def __init__(self, f, pf = None, base = None):
+    # Do we have another file to base this off of?
+    if base != None:
+      self.init2(base, fname)
+      return
+
+    import struct
+    self.f = f
+    self.pf = pf
+
+    self.header = self.f.read(80)
+    htoks = str(self.header).split()
+    self.word_size = 4
+    self.norder = int(htoks[2])
+    self.nx = int(htoks[2])
+    self.ny = int(htoks[3])
+    self.nz = int(htoks[4])
+    self.nelm = int(htoks[1])
+    self.time = float(htoks[5])
+    if htoks[0] == "b'#max":
+      self.padded = 8 * (2**20)
+    else:
+      self.padded = -1
+
+    #print("Read {:d} elements of order {:d} at time {:f}".format(self.nelm, self.norder, self.time))
+
+    #''' Assume isotropic elements '''
+    self.ntot = self.nelm * self.norder**3
+
+    #''' Check the test float '''
+    self.test = self.f.read(4)
+    self.test_tuple = struct.unpack('f', self.test)
+    byteswap = abs(self.test_tuple[0] - 6.543210029) > 0.00001
+    if byteswap:
+      self.ty = '>f{:1d}'.format(self.word_size)
+    else:
+      self.ty = 'f{:1d}'.format(self.word_size)
+    self.bformat = None
+
+    # Test opening the file
+    self.current_elm = 0
+    self.seek(0,0)
+
+  def init2(self, base, fname):
+    # copy state and write header
+    self.fname = fname
+    self.x_file = open(fname, 'wb')
+    self.header = base.header
+    self.x_file.write(self.header)
+    self.nelm = base.nelm
+    self.norder = base.norder
+    self.time = base.time
+    self.padded = base.padded
+    self.ntot = base.ntot
+    self.test = base.test
+    self.x_file.write(self.test)
+    self.ty = base.ty
+    self.bformat = base.bformat
+    self.word_size = base.word_size
+
+    # Test opening the file
+    self.current_elm = 0
+    self.u_file = open(fname, 'wb')
+    self.p_file = open(fname, 'wb')
+    self.t_file = open(fname, 'wb')
+    self.seek(0,0)
+
+  def close(self):
+    """Close file pointers and point handles to None."""
+    return
+
+  def seek(self, ielm, ifield, f = None):
+    """Move file pointers to point to the ielm-th element of the ifield-th field"""
+
+    # Seek to the right positions
+    if self.padded >= 0:
+      pad = self.padded #+ self.padded*(int((self.nelm*4 - 1)/self.padded) + 1)
+    else:
+      pad = 84 #+ self.nelm*4
+
+    #        offset -v                 header and map -v        field -v
+    if f is None:
+      self.f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+    else:
+      f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+
+    return
+
+  def get_elem(self, num = 1024, pos = -1):
+    """Read sequential elements."""
+    import numpy as np
+    if pos < 0:
+      pos = self.current_elm
+    else:
+      self.current_elm = pos
+
+    numl = min(num, self.nelm - pos)
+    if numl <= 0:
+      return 0, None, None, None
+
+    if self.pf is None:
+      self.seek(pos*3, 0)
+      x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos*3, 3)
+      u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos, 6)
+      p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+      self.seek(pos, 7)
+      t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+    else:
+      self.seek(pos*3, 0, self.pf)
+      x_raw = np.fromfile(self.pf, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos*3, 0)
+      u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
+      self.seek(pos, 3)
+      p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+      self.seek(pos, 4)
+      t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+   
+    x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
+    u = np.reshape(u_raw, (self.norder**3,3,numl), order='F')
+    p =              np.reshape(p_raw, (self.norder**3,  numl), order='F')
+    t =              np.reshape(t_raw, (self.norder**3,  numl), order='F')
+
+    self.current_elm += numl
+
+    return numl, x, u, p, t
+
+ 
+
+
 class DefaultFileReader(NekFile):
   pass 
