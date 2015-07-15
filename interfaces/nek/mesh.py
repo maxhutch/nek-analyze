@@ -53,8 +53,8 @@ class GeneralMesh(AbstractMesh):
         gllz = lz * (self.zz+1.)/(2.)
         b1z  = self.wz * (lz / 2.)
 
-        b2xy = np.outer(b1x,b1y)
-        self.b3[:,:,:,i] = np.reshape(np.outer(b1z, b2xy), (self.norder, self.norder, self.norder))
+        b2xy = np.outer(b1y,b1z)
+        self.b3[:,:,:,i] = np.reshape(np.outer(b1x, b2xy), (self.norder, self.norder, self.norder))
 
     return
 

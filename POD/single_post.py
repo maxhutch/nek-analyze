@@ -23,9 +23,11 @@ def post_frame(ans, params, args):
 
   ev, vecs = eigh(ans["overlap"])
   idx = argsort(ev)[::-1]
-  ans["ev"] = ev[idx]
+  ans["ev"] = ev[idx] / params["snapshots"]
   ans["vecs"] = vecs[:,idx]
 
+  print("Sanity check volume: {:f}".format(ans["volume"]))
+  print(ans["x_min"], ans["x_max"], ans["y_min"], ans["y_max"],ans["z_min"], ans["z_max"],)
   print(ans["overlap"])
   print("Singular values:")
   print(ans["ev"])

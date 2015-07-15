@@ -254,9 +254,9 @@ class NekFld(AbstractFileReader):
 
     #        offset -v                 header and map -v        field -v
     if f is None:
-      self.f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+      self.f.seek(ielm*self.word_size*self.norder**3*8 + pad + ifield*self.ntot*self.word_size, 0) 
     else:
-      f.seek(ielm*self.word_size*self.norder**3 + pad + ifield*self.ntot*self.word_size, 0) 
+      f.seek(ielm*self.word_size*self.norder**3*8 + pad + ifield*self.ntot*self.word_size, 0) 
 
     return
 
@@ -273,14 +273,8 @@ class NekFld(AbstractFileReader):
       return 0, None, None, None
 
     if self.pf is None:
-      self.seek(pos*3, 0)
-      x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-      self.seek(pos*3, 3)
-      u_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
-      self.seek(pos, 6)
-      p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-      self.seek(pos, 7)
-      t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
+      self.seek(pos, 0)
+      x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*8).astype(np.float64) 
     else:
       self.seek(pos*3, 0, self.pf)
       x_raw = np.fromfile(self.pf, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
@@ -290,11 +284,18 @@ class NekFld(AbstractFileReader):
       p_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
       self.seek(pos, 4)
       t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
-   
-    x = np.reshape(x_raw, (self.norder**3,3,numl), order='F')
-    u = np.reshape(u_raw, (self.norder**3,3,numl), order='F')
-    p =              np.reshape(p_raw, (self.norder**3,  numl), order='F')
-    t =              np.reshape(t_raw, (self.norder**3,  numl), order='F')
+  
+    x = np.zeros( (self.norder**3,3,numl) )
+    u = np.zeros( (self.norder**3,3,numl) )
+    raw_reshape = np.reshape(x_raw, (self.norder**3, 8, numl), order='F')
+    x[:,0,:] = raw_reshape[:,0,:] 
+    x[:,1,:] = raw_reshape[:,1,:]
+    x[:,2,:] = raw_reshape[:,2,:]
+    u[:,0,:] = raw_reshape[:,3,:] 
+    u[:,1,:] = raw_reshape[:,4,:]
+    u[:,2,:] = raw_reshape[:,5,:]
+    p = raw_reshape[:,6,:] 
+    t = raw_reshape[:,7,:] 
 
     self.current_elm += numl
 

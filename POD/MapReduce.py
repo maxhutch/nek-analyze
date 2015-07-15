@@ -90,12 +90,26 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
 
   a.overlap = np.zeros((p.snapshots, p.snapshots))
   for i in range(p.snapshots):
-    vel_mag_i = np.sqrt(np.square(meshs[i].fld('u')) + np.square(meshs[i].fld('v')) + np.square(meshs[i].fld('w')))
+    #vel_mag_i = np.sqrt(np.square(meshs[i].fld('u')) + np.square(meshs[i].fld('v')) + np.square(meshs[i].fld('w')))
     for j in range(p.snapshots):
-      vel_mag_j = np.sqrt(np.square(meshs[j].fld('u')) + np.square(meshs[j].fld('v')) + np.square(meshs[j].fld('w')))
-      a.overlap[i,j] = meshs[0].int(vel_mag_i * vel_mag_j)
+      foo = meshs[i].fld('u') * meshs[j].fld('u') + meshs[i].fld('v') * meshs[j].fld('v') + meshs[i].fld('w') * meshs[j].fld('w')
+      #vel_mag_j = np.sqrt(np.square(meshs[j].fld('u')) + np.square(meshs[j].fld('v')) + np.square(meshs[j].fld('w')))
+      #a.overlap[i,j] = meshs[0].int(vel_mag_i * vel_mag_j)
+      a.overlap[i,j] = meshs[0].int(foo)
+
+  ones = np.ones(meshs[0].fld('x').shape)
+  a.volume = meshs[0].int(ones)
+  a.x_min = meshs[0].min(meshs[0].fld('x'))
+  a.y_min = meshs[0].min(meshs[0].fld('y'))
+  a.z_min = meshs[0].min(meshs[0].fld('z'))
+  a.x_max = meshs[0].max(meshs[0].fld('x'))
+  a.y_max = meshs[0].max(meshs[0].fld('y'))
+  a.z_max = meshs[0].max(meshs[0].fld('z'))
 
   a.red_sum.append("overlap")
+  a.red_sum.append("volume")
+  a.red_min += ["x_min", "y_min", "z_min",]
+  a.red_max += ["x_max", "y_max", "z_max",]
   toc('map')
 
   return ans
