@@ -19,6 +19,8 @@ However, some analyses fall outside this model:
  * 3D 2-point correlations
 
 ## Installation
+nek-analyze requires Python3.
+
 nek-analyze depends on a number of other python packages.  Fortunately, they're all on PyPI, so they can be pip installed.
  - chest
  - mapcombine
