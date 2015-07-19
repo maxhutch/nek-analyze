@@ -174,7 +174,13 @@ class UniformMesh(GeneralMesh):
         root2.append(i)
         cept.append(int((intercept[i] -self.origin[i]) / self.length[i]))
 
-    slice = np.zeros(slice_shape)
+    if op is np.maximum:
+      slice = np.zeros(slice_shape) + np.finfo(np.float64).min
+    elif op is np.minimum:
+      slice = np.zeros(slice_shape) + np.finfo(np.float64).max
+    else:
+      slice = np.zeros(slice_shape)
+
     if op != None:
       if op == 'int':
         local = self.int(fld[:,:,:,:], axis)
