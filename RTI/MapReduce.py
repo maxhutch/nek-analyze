@@ -133,7 +133,10 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
   a.t_yz = mesh.slice(mesh.fld('t'), intercept, (0,))
   a.t_proj_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), 'int')
+  a.t_max_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), np.maximum)
+  a.t_min_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), np.minimum)
   a.t_abs_proj_z = mesh.slice(np.abs(mesh.fld('t')), intercept, (0,1), 'int')
+  a.w_abs_proj_z = mesh.slice(np.abs(mesh.fld('w')), intercept, (0,1), 'int')
   a.t_sq_proj_z  = mesh.slice(np.square(mesh.fld('t')), intercept, (0,1), 'int')
   a.u_xy = mesh.slice(mesh.fld('u'), intercept, (2,))
   a.v_xy = mesh.slice(mesh.fld('v'), intercept, (2,))
@@ -143,26 +146,33 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.w_yz = mesh.slice(mesh.fld('w'), intercept, (0,))
   a.p_xy = mesh.slice(mesh.fld('p'), intercept, (2,))
   a.p_yz = mesh.slice(mesh.fld('p'), intercept, (0,))
+  a.z_z = mesh.slice(mesh.fld('z'), intercept, (0,1,), np.maximum)
   fz = mesh.fld('t') * p.atwood * p.g - mesh.dx('p', 2) 
   a.fz_xy = mesh.slice(fz, intercept, (2,))
   a.fz_yz = mesh.slice(fz, intercept, (0,))
   pflux = mesh.fld('t') * mesh.fld('w')
   pflux[mesh.fld('t') < 0] = 0.
   a.flux_proj_z = mesh.slice(pflux, intercept, (0,1), 'int')
+  pflux = np.square( mesh.fld('w'))
+  pflux[mesh.fld('w') < 0] = 0.
+  a.mom_proj_z = mesh.slice(pflux, intercept, (0,1), 'int')
+
   a.total_pressure_xy = mesh.slice(total_pressure, intercept, (2,))
   a.total_pressure_yz = mesh.slice(total_pressure, intercept, (0,))
 
   a.slices += [
-               't_xy', 't_yz', 't_proj_z', 't_abs_proj_z', 't_sq_proj_z',
+               't_xy', 't_yz', 
+               't_proj_z', 't_abs_proj_z', 't_sq_proj_z',
                'p_xy', 'p_yz', 'u_xy', 'v_xy', 'w_xy', 
                'u_yz', 'v_yz', 'w_yz', 'fz_xy', 'fz_yz',
-               'flux_proj_z', 'total_pressure_xy', 'total_pressure_yz'
+               'flux_proj_z', 'total_pressure_xy', 'total_pressure_yz',
+               'w_abs_proj_z', 'mom_proj_z',
               ]
 
   a.w_max_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.maximum)
   a.w_min_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.minimum)
-  a.red_max += ['w_max_z']
-  a.red_min += ['w_min_z']
+  a.red_max += ['w_max_z', 't_max_z', 'z_z']
+  a.red_min += ['w_min_z', 't_min_z',]
 
   dvdx = mesh.dx('v',0)
   dudy = mesh.dx('u',1)
@@ -190,7 +200,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
       +  np.square(dwdy + dvdz)  
       +  np.square(mesh.dx('u',2) + mesh.dx('w',0))
                        )
-  a.Dissipated = mesh.int(diss) * p.io_time
+  a.Dissipated = mesh.int(diss) 
   a.red_sum.append('Dissipated')
   a.d_xy = mesh.slice(diss, intercept, (2,))
   a.d_yz = mesh.slice(diss, intercept, (0,))

@@ -169,12 +169,15 @@ def post_frame(ans, params, args):
       h_cabot += (tmax - ans["t_proj_z"][i]) 
   ans["h"] = h_cabot
 
-  zs = np.linspace(params["root_mesh"][2], params["extent_mesh"][2], ans["t_proj_z"].shape[0], endpoint = True)
+  zs = ans['z_z'] 
   from utils.my_utils import find_root
   h_visual = ( find_root(zs, ans["t_proj_z"], y0 = tmax - (tmax - tmin)*.01)
              - find_root(zs, ans["t_proj_z"], y0 = tmin + (tmax - tmin)*0.1)) / 2.
 
+  h_exp = find_root(zs, np.array(ans["t_max_z"]), y0 = 0.0)
+
   ans["H"] = h_visual
+  ans["H_exp"] = h_exp
   plot_frame(ans, params, args)
 
   from chest import Chest
