@@ -30,14 +30,14 @@ else:
 
 # insert new results into the out-of-core dictionary (Chest)
 from chest import Chest
-c = Chest(path=args.chest_path)
 for i, res in enumerate(stuff):
   c1 = Chest(path=res['cpath'])
+  c = Chest(path=args.chest_path)
   c.update(c1)
+  c.flush()
   c1.drop()
 
   # Print a progress update
   run_time = time.time() - start_time
   print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
-c.flush()
 
