@@ -110,7 +110,7 @@ class NekFile(AbstractFileReader):
     if numl <= 0:
       return 0, None, None, None
 
-    if self.pf is None:
+    if self.pf is None or self.pf.name == self.f.name:
       self.seek(pos*3, 0)
       x_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
       self.seek(pos*3, 3)
