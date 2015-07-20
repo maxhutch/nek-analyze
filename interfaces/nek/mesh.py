@@ -1,7 +1,7 @@
 
 from interfaces.abstract import AbstractMesh
 from interfaces.nek.sem import zwgll, dhat
-from interfaces.nek.slice import DenseSlice
+from interfaces.nek.slice import DenseSlice, SparseSlice
 import numpy as np
 
 class GeneralMesh(AbstractMesh):
@@ -178,7 +178,7 @@ class UniformMesh(GeneralMesh):
         cept.append(int((intercept[i] -self.origin[i]) / self.length[i]))
 
     # Init res
-    res = DenseSlice(slice_shape, op)
+    res = SparseSlice(slice_shape, op)
  
     if op != None:
       if op == 'int':

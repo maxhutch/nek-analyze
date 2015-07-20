@@ -97,17 +97,15 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   # Take slices
   for i in range(16):
     #a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
-    a.t_yz = mesh.slice(mesh.fld('x'), intercept, (0,))
-    #a.t_proj_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), 'int')
+    #a.t_yz = mesh.slice(mesh.fld('x'), intercept, (0,))
+    a.t_proj_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), 'int')
     #a.t_max_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), np.maximum)
     #a.t_abs_proj_z = mesh.slice(np.abs(mesh.fld('t')), intercept, (0,1), 'int')
     #dvdx = mesh.dx('v',0)
     pass
 
-  a.slices += ['t_xy', 't_yz']
+  a.slices += ['t_xy', 't_yz', 't_proj_z', 't_max_z', 't_abs_proj_z', ]
 
-  a.red_max += ['t_max_z',]
-  a.red_min += ['t_min_z',]
 
   toc('map')
   return ans

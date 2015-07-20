@@ -145,7 +145,7 @@ def plot_frame(ans, params, args):
 
   run_name = basename(args.name)
   for name in ans['slices']:
-    plot_slice(ans[name], "{:s}/{:s}-{:s}-{:04d}".format(args.fig_path, run_name,name, ans['frame']))
+    plot_slice(ans[name].to_array(), "{:s}/{:s}-{:s}-{:04d}".format(args.fig_path, run_name,name, ans['frame']))
 
   return 
 
@@ -158,23 +158,23 @@ def post_frame(ans, params, args):
   # Mixing height
   L = params["extent_mesh"][2] - params["root_mesh"][2]
   h = 0.
-  tmax = np.max(ans["t_proj_z"])
-  tmin = np.min(ans["t_proj_z"])
+  tmax = np.max(ans["t_proj_z"].to_array())
+  tmin = np.min(ans["t_proj_z"].to_array())
   tzero = (tmax + tmin) / 2
   h_cabot = 0.
-  for i in range(ans["t_proj_z"].shape[0]):
-    if ans["t_proj_z"][i] < tzero:
-      h_cabot += (ans["t_proj_z"][i] - tmin) 
+  for i in range(ans["t_proj_z"].to_array().shape[0]):
+    if ans["t_proj_z"].to_array()[i] < tzero:
+      h_cabot += (ans["t_proj_z"].to_array()[i] - tmin) 
     else:
-      h_cabot += (tmax - ans["t_proj_z"][i]) 
+      h_cabot += (tmax - ans["t_proj_z"].to_array()[i]) 
   ans["h"] = h_cabot
 
-  zs = ans['z_z'] 
+  zs = ans['z_z'].to_array() 
   from utils.my_utils import find_root
-  h_visual = ( find_root(zs, ans["t_proj_z"], y0 = tmax - (tmax - tmin)*.01)
-             - find_root(zs, ans["t_proj_z"], y0 = tmin + (tmax - tmin)*0.1)) / 2.
+  h_visual = ( find_root(zs, ans["t_proj_z"].to_array(), y0 = tmax - (tmax - tmin)*.01)
+             - find_root(zs, ans["t_proj_z"].to_array(), y0 = tmin + (tmax - tmin)*0.1)) / 2.
 
-  h_exp = find_root(zs, np.array(ans["t_max_z"]), y0 = 0.0)
+  h_exp = find_root(zs, np.array(ans["t_max_z"].to_array()), y0 = 0.0)
 
   ans["H"] = h_visual
   ans["H_exp"] = h_exp

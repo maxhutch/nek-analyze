@@ -29,6 +29,7 @@ else:
   stuff =  map(outer_process, jobs)
 
 # insert new results into the out-of-core dictionary (Chest)
+nelm = params["shape_mesh"][0] * params["shape_mesh"][1] * params["shape_mesh"][2]
 from chest import Chest
 for i, res in enumerate(stuff):
   c1 = Chest(path=res['cpath'])
@@ -39,5 +40,5 @@ for i, res in enumerate(stuff):
 
   # Print a progress update
   run_time = time.time() - start_time
-  print("Processed {:d}th frame after {:f}s ({:f} fps)".format(i, run_time, (i+1)/run_time)) 
+  print("Processed {:d}th frame after {:f}s ({:f} eps)".format(i, run_time, (i+1)*nelm/run_time)) 
 

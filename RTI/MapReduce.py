@@ -62,6 +62,8 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a = Struct(ans)
   p = Struct(params)
 
+  from tictoc import tic, toc
+  tic()
   #with open(ans['fname'], 'rb') as f:
   if "input_file" not in ans:
     a.ofile = open(ans['fname'], 'rb')
@@ -71,15 +73,19 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
 
   mesh = UniformMesh(a.input_file, params)
   mesh.load(pos, nelm_to_read)
-
+  
   if last:
     a.input_file.close()
     a.ofile.close()
     #a.glopen.__exit__(None, None, None)
-
+  toc('load')
+  tic()
   # We need to union these sets
   a.red_uin = ['red_max', 'red_min', 'red_sum', 'slices']
   a.slices = []
+
+  a.time   = a.input_file.time
+  a.red_max.append('time')
 
   # We want slices centered here:
   intercept = (
@@ -101,8 +107,6 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.red_min.append('TMin')
   a.UAbs   = float( max_speed)
   a.red_max.append('UAbs')
-  a.time   = a.input_file.time
-  a.red_max.append('time')
   a.dx_max = float(np.max(mesh.gll[1:] - mesh.gll[:-1]))
   a.red_max.append('dx_max')
 
@@ -166,13 +170,12 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
                'p_xy', 'p_yz', 'u_xy', 'v_xy', 'w_xy', 
                'u_yz', 'v_yz', 'w_yz', 'fz_xy', 'fz_yz',
                'flux_proj_z', 'total_pressure_xy', 'total_pressure_yz',
-               'w_abs_proj_z', 'mom_proj_z',
+               'w_abs_proj_z', 'mom_proj_z', 'z_z', 
+               't_max_z', 't_min_z', 
               ]
 
   a.w_max_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.maximum)
   a.w_min_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.minimum)
-  a.red_max += ['w_max_z', 't_max_z', 'z_z']
-  a.red_min += ['w_min_z', 't_min_z',]
 
   dvdx = mesh.dx('v',0)
   dudy = mesh.dx('u',1)
@@ -206,8 +209,9 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   a.d_yz = mesh.slice(diss, intercept, (0,))
   a.slices += ['d_xy', 'd_yz']
 
-  a.red_sum += a.slices
+  #a.red_sum += a.slices
   a.slices += ['w_max_z', 'w_min_z']
+  toc('map')
   return ans
 
 def reduce_(whole, part):
@@ -246,6 +250,12 @@ def reduce_(whole, part):
       whole[key] = whole[key] + part[key]
     elif key in part:
       whole[key] = part[key]
+  for key in whole['slices']:
+      if key in whole and key in part:
+          whole[key].merge(part[key])
+      elif key in part:
+          whole[key] = part[key]
+
 
   return 
 
