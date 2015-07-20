@@ -64,27 +64,23 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
 
   from tictoc import tic, toc
   tic()
-  #with open(ans['fname'], 'rb') as f:
-  if "input_file" not in ans:
+  if "mesh" not in ans:
     a.ofile = open(ans['fname'], 'rb')
-    a.input_file = NekFile(a.ofile)
-    #a.glopen = glopen(ans['fname'], 'rb', endpoint="maxhutch#alpha-admin/tmp/")
-    #a.input_file = NekFile(a.glopen.__enter__())
+    a.mesh = UniformMesh(NekFile(a.ofile), params)
 
-  mesh = UniformMesh(a.input_file, params)
+  mesh = a.mesh
   mesh.load(pos, nelm_to_read)
   
   if last:
-    a.input_file.close()
-    a.ofile.close()
-    #a.glopen.__exit__(None, None, None)
+    a.mesh.reader.close()
+    a.mesh.reader.f.close()
   toc('load')
   tic()
   # We need to union these sets
   a.red_uin = ['red_max', 'red_min', 'red_sum', 'slices']
   a.slices = []
 
-  a.time   = a.input_file.time
+  a.time   = a.mesh.reader.time
   a.red_max.append('time')
 
   # We want slices centered here:
@@ -214,6 +210,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   toc('map')
   return ans
 
+from interfaces.nek.slice import DenseSlice, SparseSlice
 def reduce_(whole, part):
   """ Reduce results into a single output object (dict) """
   import numpy as np
@@ -251,6 +248,10 @@ def reduce_(whole, part):
     elif key in part:
       whole[key] = part[key]
   for key in whole['slices']:
+      if key in whole and isinstance(whole[key], SparseSlice):
+          ds = DenseSlice(whole[key].shape, whole[key].op)
+          ds.merge(whole[key])
+          whole[key] = ds
       if key in whole and key in part:
           whole[key].merge(part[key])
       elif key in part:

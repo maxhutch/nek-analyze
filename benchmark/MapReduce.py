@@ -95,13 +95,13 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
 
   # Min and max values, mostly for stability  
   # Take slices
-  for i in range(16):
-    #a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
-    #a.t_yz = mesh.slice(mesh.fld('x'), intercept, (0,))
+  for i in range(1):
+    a.t_xy = mesh.slice(mesh.fld('t'), intercept, (2,))
+    a.t_yz = mesh.slice(mesh.fld('x'), intercept, (0,))
     a.t_proj_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), 'int')
-    #a.t_max_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), np.maximum)
-    #a.t_abs_proj_z = mesh.slice(np.abs(mesh.fld('t')), intercept, (0,1), 'int')
-    #dvdx = mesh.dx('v',0)
+    a.t_max_z  = mesh.slice(mesh.fld('t'), intercept, (0,1), np.maximum)
+    a.t_abs_proj_z = mesh.slice(np.abs(mesh.fld('t')), intercept, (0,1), 'int')
+    dvdx = mesh.dx('v',0)
     pass
 
   a.slices += ['t_xy', 't_yz', 't_proj_z', 't_max_z', 't_abs_proj_z', ]
@@ -110,6 +110,7 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   toc('map')
   return ans
 
+from interfaces.nek.slice import DenseSlice, SparseSlice
 def reduce_(whole, part):
   """ Reduce results into a single output object (dict) """
   import numpy as np
@@ -147,10 +148,14 @@ def reduce_(whole, part):
     elif key in part:
       whole[key] = part[key]
   for key in whole['slices']:
-    if key in whole and key in part:
-      whole[key].merge(part[key])
-    elif key in part:
-      whole[key] = part[key]
+      if key in whole and isinstance(whole[key], SparseSlice):
+          ds = DenseSlice(whole[key].shape, whole[key].op)
+          ds.merge(whole[key])
+          whole[key] = ds
+      if key in whole and key in part:
+          whole[key].merge(part[key])
+      elif key in part:
+          whole[key] = part[key]
 
   return 
 

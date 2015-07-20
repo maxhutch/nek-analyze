@@ -20,7 +20,11 @@ class DenseSlice(AbstractSlice):
     return self.sl
 
   def merge(self, sl2):
-    self.sl = self.op(self.sl, sl2.to_array())
+    if isinstance(sl2, SparseSlice):
+        for pos,patch in sl2.patches.items():
+            self.add(pos, patch)
+    else:
+        self.sl = self.op(self.sl, sl2.to_array())
 
   def add(self, pos, data):
     block = data.shape
