@@ -43,3 +43,19 @@ class AbstractMesh(metaclass=ABCMeta):
   def min(self, fld, axis):
     pass
 
+class AbstractSlice(metaclass=ABCMeta):
+  @abstractmethod
+  def __init__(self, shape):
+    pass
+
+  @abstractmethod 
+  def to_array(self):
+    pass
+
+  @abstractmethod
+  def merge(self, sl2):
+    pass
+
+  @abstractmethod
+  def add(self, pos, data):
+    pass

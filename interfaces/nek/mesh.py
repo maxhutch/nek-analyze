@@ -1,6 +1,7 @@
 
 from interfaces.abstract import AbstractMesh
 from interfaces.nek.sem import zwgll, dhat
+from interfaces.nek.slice import DenseSlice
 import numpy as np
 
 class GeneralMesh(AbstractMesh):
@@ -177,12 +178,7 @@ class UniformMesh(GeneralMesh):
         cept.append(int((intercept[i] -self.origin[i]) / self.length[i]))
 
     # Init res
-    if op is np.maximum:
-      res = np.zeros(slice_shape) + np.finfo(np.float64).min
-    elif op is np.minimum:
-      res = np.zeros(slice_shape) + np.finfo(np.float64).max
-    else:
-      res = np.zeros(slice_shape)
+    res = DenseSlice(slice_shape, op)
  
     if op != None:
       if op == 'int':
@@ -190,13 +186,10 @@ class UniformMesh(GeneralMesh):
         local = local[...,:-1,:]
       else:
         local = op.reduce(fld[:-1,:-1,:-1,:], axis)
-      sls = [tuple([np.s_[(self.norder - 1) * self.root[root[j],i]:(self.norder - 1) * (self.root[root[j],i]+1)] for j in range(len(root))]) for i in range(self.nelm)]
-      if op == 'int':
-        for i in range(self.nelm):
-          res[sls[i]] =  np.add(res[sls[i]], local[...,i])
-      else:
-        for i in range(self.nelm):
-          res[sls[i]] =  op(res[sls[i]], local[...,i])
+
+      sls = [[(self.norder - 1) * self.root[root[j],i] for j in range(len(root))] for i in range(self.nelm)]
+      for i in range(self.nelm):
+          res.add(sls[i], local[...,i])
  
     else:
       local = fld[:-1,:-1,:-1,:]
@@ -207,9 +200,7 @@ class UniformMesh(GeneralMesh):
         sl = tuple([np.s_[0] if ax in axis else np.s_[:] for ax in range(3)] + [np.s_[i]])
         foo = local[sl]
         starti = [(self.norder-1)*self.root[root[j],i] for j in range(len(root))]
-        endi = [x + self.norder - 1 for x in starti]
-        sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
-        res[sl] += foo
+        res.add(starti, foo)
     
     return res
 
