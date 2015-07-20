@@ -159,13 +159,15 @@ class UniformMesh(GeneralMesh):
 
   def slice(self, fld, intercept, axis, op = None):
     if isinstance(fld, str):
-      fld = self.fld(fld)
+        fld = self.fld(fld) 
+ 
+    # init meta-data
     full_shape = self.shape * (self.norder-1) + 1
     slice_shape = []
     root = []
     cept = []
     root2 = []
-    p = ['x', 'y', 'z']
+    #p = ['x', 'y', 'z']
     for i in range(3):
       if not i in axis:
         root.append(i)
@@ -174,13 +176,14 @@ class UniformMesh(GeneralMesh):
         root2.append(i)
         cept.append(int((intercept[i] -self.origin[i]) / self.length[i]))
 
+    # Init res
     if op is np.maximum:
-      slice = np.zeros(slice_shape) + np.finfo(np.float64).min
+      res = np.zeros(slice_shape) + np.finfo(np.float64).min
     elif op is np.minimum:
-      slice = np.zeros(slice_shape) + np.finfo(np.float64).max
+      res = np.zeros(slice_shape) + np.finfo(np.float64).max
     else:
-      slice = np.zeros(slice_shape)
-
+      res = np.zeros(slice_shape)
+ 
     if op != None:
       if op == 'int':
         local = self.int(fld[:,:,:,:], axis)
@@ -190,11 +193,11 @@ class UniformMesh(GeneralMesh):
       sls = [tuple([np.s_[(self.norder - 1) * self.root[root[j],i]:(self.norder - 1) * (self.root[root[j],i]+1)] for j in range(len(root))]) for i in range(self.nelm)]
       if op == 'int':
         for i in range(self.nelm):
-          slice[sls[i]] =  np.add(slice[sls[i]], local[...,i])
+          res[sls[i]] =  np.add(res[sls[i]], local[...,i])
       else:
         for i in range(self.nelm):
-          slice[sls[i]] =  op(slice[sls[i]], local[...,i])
-
+          res[sls[i]] =  op(res[sls[i]], local[...,i])
+ 
     else:
       local = fld[:-1,:-1,:-1,:]
       for i in range(self.nelm):
@@ -206,9 +209,9 @@ class UniformMesh(GeneralMesh):
         starti = [(self.norder-1)*self.root[root[j],i] for j in range(len(root))]
         endi = [x + self.norder - 1 for x in starti]
         sl = tuple([np.s_[starti[j]:endi[j]] for j in range(len(root))])
-        slice[sl] += foo
+        res[sl] += foo
     
-    return slice
+    return res
 
 class GeneralMesh(AbstractMesh):
   """ Most general Nek mesh; doesn't support much. """
