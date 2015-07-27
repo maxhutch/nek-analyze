@@ -67,3 +67,11 @@ class SparseSlice(AbstractSlice):
     else:
       self.patches[key] = np.copy(data)
 
+  def __add__(self, other):
+    res = SparseSlice(self.shape, op=np.add)
+    for pos,patch in self.patches.items():
+      res.add(pos, patch)
+    for pos,patch in other.patches.items():
+      res.add(pos, patch)
+    return res 
+
