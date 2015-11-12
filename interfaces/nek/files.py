@@ -120,6 +120,8 @@ class NekFile(AbstractFileReader):
       self.seek(pos, 7)
       t_raw = np.fromfile(self.f, dtype=self.ty, count = numl*(self.norder**3)).astype(np.float64) 
     else:
+      if pos == 0:
+        print("Using pos file")
       self.seek(pos*3, 0, self.pf)
       x_raw = np.fromfile(self.pf, dtype=self.ty, count = numl*(self.norder**3)*3).astype(np.float64) 
       self.seek(pos*3, 0)

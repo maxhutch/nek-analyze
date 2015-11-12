@@ -29,6 +29,9 @@ def MR_init(args, params, frame):
   for j in range(abs(int(params["io_files"]))):
       fname = nek_fname(args.name, frame, j, params["io_files"])
       ans['fname'] = fname
+      if args.single_pos:
+        pfname = nek_fname(args.name, 1, j, params["io_files"])
+        ans['pfname'] = pfname
       if np.prod(np.array(params["shape_mesh"])) % abs(int(params["io_files"])) == 0:
         nelm = np.prod(np.array(params["shape_mesh"])) / abs(int(params["io_files"]))
       else:
@@ -66,7 +69,11 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   tic()
   if "mesh" not in ans:
     a.ofile = open(ans['fname'], 'rb')
-    a.mesh = UniformMesh(NekFile(a.ofile), params)
+    if "pfname" in ans:
+      a.pfile = open(ans['pfname'], 'rb')
+      a.mesh = UniformMesh(NekFile(a.ofile, pf=a.pfile), params)
+    else:
+      a.mesh = UniformMesh(NekFile(a.ofile), params)
 
   mesh = a.mesh
   mesh.load(pos, nelm_to_read)
@@ -74,6 +81,9 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   if last:
     a.mesh.reader.close()
     a.mesh.reader.f.close()
+    if "pfname" in ans:
+      a.mesh.reader.pf.close()
+
   toc('load')
   tic()
   # We need to union these sets
@@ -170,6 +180,10 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
                't_max_z', 't_min_z', 
               ]
 
+
+  a.Xi  = mesh.int(np.abs(mesh.fld('t')))
+  a.red_sum.append('Xi')
+
   a.w_max_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.maximum)
   a.w_min_z = mesh.slice(mesh.fld('w'), intercept, (0,1), np.minimum)
 
@@ -201,6 +215,8 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
                        )
   a.Dissipated = mesh.int(diss) 
   a.red_sum.append('Dissipated')
+
+
   a.d_xy = mesh.slice(diss, intercept, (2,))
   a.d_yz = mesh.slice(diss, intercept, (0,))
   a.slices += ['d_xy', 'd_yz']

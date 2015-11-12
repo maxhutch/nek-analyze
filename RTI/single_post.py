@@ -115,10 +115,17 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from os.path import basename
+from os.path import basename, dirname, exists
+from os import makedirs
 def plot_slice(data, name):
 
   min_size = 6
+  if not exists(dirname(name)):
+    try:
+      makedirs(dirname(name))
+    except:
+      pass 
+
   if len(data.shape) == 2:
     fsize = np.minimum(np.array(data.shape) * min_size / min(data.shape), np.array([128, 128]))
     plt.figure(figsize=tuple(fsize.tolist()))
@@ -180,11 +187,16 @@ def post_frame(ans, params, args):
   ans["H_exp"] = h_exp
   plot_frame(ans, params, args)
 
+  from interfaces.abstract import AbstractSlice
+
   from chest import Chest
   cpath = '{:s}-chest-{:03d}'.format(args.chest_path, ans["frame"])
   c = Chest(path=cpath)
   for key in ans.keys():
-    c[ans['time'], key] = ans[key]
+    if isinstance(ans[key], AbstractSlice):
+      c[ans['time'], key] = ans[key].to_array()
+    else:
+      c[ans['time'], key] = ans[key]
   ans.clear()
   c.flush()
 
