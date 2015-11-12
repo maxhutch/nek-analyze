@@ -20,6 +20,10 @@ def command_line_ui():
   if exists(join(expanduser("~"), ".nek-analyze.json")):
     with open(join(expanduser("~"), ".nek-analyze.json")) as f:
       defaults.update(json.load(f))
+  else:
+    with open(join(expanduser("~"), ".nek-analyze.json"), 'w') as f:
+      json.dump(defaults, f)
+
 
   # Define arguments
   from argparse import ArgumentParser
