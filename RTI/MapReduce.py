@@ -56,7 +56,6 @@ def map_(pos, nelm_to_read, params, scratch = None, last = False):
   from tictoc import tic, toc
   from interfaces.nek.mesh import UniformMesh
   from interfaces.nek.files import NekFile
-  from glopen import glopen
 
   ans = {}
   if scratch != None:
