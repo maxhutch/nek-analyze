@@ -132,7 +132,7 @@ class UniformMesh(GeneralMesh):
     self.fields['t'] = np.reshape(t       , nshp, order = 'F')
     self.root = np.zeros((3,self.nelm), order='F', dtype=int)
     for i in range(3):
-      self.root[i,:] = (x[0,i,:] -self.origin[i]) / self.length[i]
+      self.root[i,:] = (x[0,i,:] -self.origin[i]) / self.length[i] + .5
     return
 
   def dx(self, fld, axis):
