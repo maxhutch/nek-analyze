@@ -1,4 +1,3 @@
-#!/home/maxhutch/anaconda3/bin/python
 #!/usr/bin/env python3
 """
 Driver for nek-analyze
