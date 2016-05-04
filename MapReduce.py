@@ -1,4 +1,4 @@
-def MR_init(args, params):
+def MR_init(args, params, frame):
   """ Initialize MapReduce data """
 
   # return a cleaned up version of locals
@@ -8,7 +8,7 @@ def MR_init(args, params):
   return ans
 
 
-def map_(pos, vel, p, t, params, scratch = None):
+def map_(pos, vel, p, t, params, scratch = None, last=False):
   """ Map operations onto chunk of elements """
 
   return
